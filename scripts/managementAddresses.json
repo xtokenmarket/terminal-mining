@@ -1,0 +1,22 @@
+{
+    "mainnet": {
+        "xTokenManager": "0xfA3CaAb19E6913b6aAbdda4E27ac413e96EaB0Ca",
+        "ProxyAdmin": "0x54FF0Bf514134A24D2795c554952E0ce1F47aC79",
+        "Multisig": "0x105Ed4E2980CC60A13DdF854c75133434D6b4074"
+    },
+    "arbitrum": {
+        "xTokenManager": "0x9032604aE8c019276CbD446a431288110EA40673",
+        "ProxyAdmin": "0x797D85c62A9F1CEDDb5D04A0c37711ff8eC4805F",
+        "Multisig": "0xD3440DD072db409118309589417155fCE1B8cf25"
+    },
+    "optimism": {
+        "xTokenManager": "0xC50954bF065f09c3E4986A57e33F20ae0D1e681F",
+        "ProxyAdmin": "0xa21e6e7D3B9DE8e6fFDe9151ce58C3A9671805b2",
+        "Multisig": "0x18E5877C98CF7Cb6A21E213eCD43C11a3FB709bF"
+    },
+    "polygon": {
+        "xTokenManager": "0xC50954bF065f09c3E4986A57e33F20ae0D1e681F",
+        "ProxyAdmin": "0xa21e6e7D3B9DE8e6fFDe9151ce58C3A9671805b2",
+        "Multisig": "0x1Cd244d089Ab055d9A0EA209201f05fD9ca41a75"
+    }
+}
