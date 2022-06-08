@@ -19,7 +19,7 @@ describe('Contract: CLR', async () => {
   })
 
   describe('Management', async () => {
-    it('should be able to rebalance', async () => {
+    it('should be able to reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
         let mintAmount2 = bnDecimals(1000000, token1Decimals)
         await clr.deposit(0, mintAmount);
@@ -46,7 +46,7 @@ describe('Contract: CLR', async () => {
         await expect(clr.collectAndReinvest()).not.to.be.reverted;
     }),
 
-    it('shouldn\'t be able to rebalance if there\'s no balance in buffer', async () => {
+    it('shouldn\'t be able to reinvest if there\'s no balance in buffer', async () => {
         await expect(clr.reinvest()).to.be.revertedWith('Rebalance amounts are 0');
     })
 
@@ -89,6 +89,142 @@ describe('Contract: CLR', async () => {
       expect(stakedBalanceBefore.amount0).to.be.lt(stakedBalanceAfter.amount0);
       expect(stakedBalanceBefore.amount1).to.be.lt(stakedBalanceAfter.amount1);
     }),
+
+    it('should be able to rebalance to new price range', async () => {
+        await lmTerminal.enableRebalanceForPool(clr.address);
+        let tokenId = await clr.tokenId();
+        let ticks = await clr.getTicks();
+        expect(ticks.tick0).to.be.eq(-600);
+        expect(ticks.tick1).to.be.eq(600);
+
+        let newLowerTick = -1200;
+        let newUpperTick = 1200;
+        await clr.rebalance(newLowerTick, newUpperTick, 0, 0);
+
+        ticks = await clr.getTicks();
+        let newTokenId = await clr.tokenId();
+        expect(ticks.tick0).to.be.eq(-1200);
+        expect(ticks.tick1).to.be.eq(1200);
+        expect(tokenId).not.to.eq(newTokenId);
+    }),
+
+    it('should be able to rebalance to a tighter price range outside the current price with t0 staked = 0', async () => {
+      await lmTerminal.enableRebalanceForPool(clr.address);
+      let tokenId = await clr.tokenId();
+      let ticks = await clr.getTicks();
+      let stakedBalance = await clr.getStakedTokenBalance();
+      expect(ticks.tick0).to.be.eq(-600);
+      expect(ticks.tick1).to.be.eq(600);
+
+      expect(stakedBalance.amount0).not.to.be.eq(0);
+
+      // new price range: 0.94 - 0.99
+      let newLowerTick = -600;
+      let newUpperTick = -120;
+      await clr.rebalance(newLowerTick, newUpperTick, 0, 0);
+
+      ticks = await clr.getTicks();
+      let newTokenId = await clr.tokenId();
+      expect(ticks.tick0).to.be.eq(-600);
+      expect(ticks.tick1).to.be.eq(-120);
+      expect(tokenId).not.to.eq(newTokenId);
+
+      stakedBalance = await clr.getStakedTokenBalance();
+      expect(stakedBalance.amount0).to.be.eq(0);
+    }),
+
+    it('should be able to rebalance to a tighter price range outside the current price with t1 staked = 0', async () => {
+      await lmTerminal.enableRebalanceForPool(clr.address);
+      let tokenId = await clr.tokenId();
+      let ticks = await clr.getTicks();
+      let stakedBalance = await clr.getStakedTokenBalance();
+      expect(ticks.tick0).to.be.eq(-600);
+      expect(ticks.tick1).to.be.eq(600);
+
+      expect(stakedBalance.amount1).not.to.be.eq(0);
+
+      // new price range: 1.01 - 1.06
+      let newLowerTick = 120;
+      let newUpperTick = 600;
+      await clr.rebalance(newLowerTick, newUpperTick, 0, 0);
+
+      ticks = await clr.getTicks();
+      let newTokenId = await clr.tokenId();
+      expect(ticks.tick0).to.be.eq(120);
+      expect(ticks.tick1).to.be.eq(600);
+      expect(tokenId).not.to.eq(newTokenId);
+
+      stakedBalance = await clr.getStakedTokenBalance();
+
+      expect(stakedBalance.amount1).to.be.eq(0);
+    }),
+
+    it('should be able to rebalance to a very tight price range', async () => {
+      await lmTerminal.enableRebalanceForPool(clr.address);
+      let tokenId = await clr.tokenId();
+      let ticks = await clr.getTicks();
+      let stakedBalance = await clr.getStakedTokenBalance();
+      expect(ticks.tick0).to.be.eq(-600);
+      expect(ticks.tick1).to.be.eq(600);
+
+      // new price range: 0.99 - 1.01
+      let newLowerTick = -120;
+      let newUpperTick = 120;
+      await clr.rebalance(newLowerTick, newUpperTick, 0, 0);
+
+      ticks = await clr.getTicks();
+      let newTokenId = await clr.tokenId();
+      expect(ticks.tick0).to.be.eq(-120);
+      expect(ticks.tick1).to.be.eq(120);
+      expect(tokenId).not.to.eq(newTokenId);
+
+      stakedBalance = await clr.getStakedTokenBalance();
+    }),
+
+    it('should be able to rebalance twice if more than 24 hours have passed', async () => {
+        await lmTerminal.enableRebalanceForPool(clr.address);
+
+        await clr.rebalance(-1200, 1200, 0, 0);
+
+        await increaseTime(86400);
+
+        await clr.rebalance(-6000, 6000, 0, 0);
+    })
+
+    it('shouldn\'t be able to rebalance to same price range', async () => {
+        let ticks = await clr.getTicks();
+        await expect(clr.rebalance(ticks.tick0, ticks.tick1, 0, 0)).to.be.revertedWith('Need to change ticks');
+    }),
+
+    it('shouldn\'t be able to rebalance if pool isn\'t whitelisted in terminal', async () => {
+        let ticks = await clr.getTicks();
+        expect(ticks.tick0).to.be.eq(-600);
+        expect(ticks.tick1).to.be.eq(600);
+
+        let newLowerTick = -1200;
+        let newUpperTick = 1200;
+        await expect(clr.rebalance(newLowerTick, newUpperTick, 0, 0)).
+          to.be.revertedWith('Rebalance is not enabled for this pool');
+    }),
+
+    it('shouldn\'t be able to rebalance if the min staked amount is not enough', async () => {
+        await lmTerminal.enableRebalanceForPool(clr.address);
+        let stakedBalance = await clr.getStakedTokenBalance();
+
+        await expect(clr.rebalance(-1200, 1200, stakedBalance.amount0, stakedBalance.amount1)).
+          to.be.revertedWith('Staked token amounts after rebalance are not enough')
+    }),
+
+    it('shouldn\'t be able to rebalance twice in less than 24 hours', async () => {
+        await lmTerminal.enableRebalanceForPool(clr.address);
+
+        await clr.rebalance(-1200, 1200, 0, 0);
+
+        await increaseTime(86300);
+
+        await expect(clr.rebalance(-6000, 6000, 0, 0)).
+          to.be.revertedWith('Can only rebalance once per 24 hours')
+    })
 
     it('should be able to swap token 0 for token 1 in clr', async () => {
       // Swap to collect some fees in buffer

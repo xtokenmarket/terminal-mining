@@ -29,6 +29,16 @@ describe('Contract: CLR', async () => {
         let position = await clr.getStakedTokenBalance();
         expect(position.amount0).not.to.be.eq(0);
         expect(position.amount1).not.to.be.eq(0);
+    }),
+
+    it('should be able to get the NAV', async () => {
+      let nav = await clr.getNAV();
+      expect(nav).not.to.be.eq(0);
+    }),
+
+    it('should be able to get the TWAP', async () => {
+      let twap = await clr.getTWAP();
+      expect(twap).not.to.be.eq(0);
     })
   })
 })

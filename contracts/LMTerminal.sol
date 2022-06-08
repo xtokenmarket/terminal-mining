@@ -50,6 +50,8 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
 
     mapping(address => bool) private isCLRPool; // True if address is CLR pool
 
+    mapping(address => bool) public isRebalanceEnabled; // True if rebalance is enabled for CLR Pool
+
     // -- Structs --
 
     struct PositionTicks {
@@ -400,10 +402,19 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @dev Change CLR Deployer address
+     * @notice Enable rebalancing for pool
+     * @param pool pool to enable rebalance for
      */
-    function setCLRDeployer(address newDeployer) public onlyOwner {
-        clrDeployer = CLRDeployer(newDeployer);
+    function enableRebalanceForPool(address pool) public onlyOwner {
+        isRebalanceEnabled[pool] = true;
+    }
+
+    /**
+     * @notice Disable rebalancing for pool
+     * @param pool pool to disable rebalance for
+     */
+    function disableRebalanceForPool(address pool) public onlyOwner {
+        isRebalanceEnabled[pool] = false;
     }
 
     /**

@@ -48,8 +48,8 @@ const deploymentFixture = deployments.createFixture(async () => {
     token1 = tmp;
   }
   // 0.91 - 1.07 price
-  const lowTick = 137220;
-  const highTick = 138840;
+  const lowTick = -960;
+  const highTick = 660;
   // Price = 1
   const price = '79228162514264337593543950336';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
@@ -70,8 +70,8 @@ const deploymentFixture = deployments.createFixture(async () => {
     token1 = tmp;
   }
   // 0.91 - 1.07 price
-  const lowTick = 137220;
-  const highTick = 138840;
+  const lowTick = -960;
+  const highTick = 660;
   // Price = 1
   const price = '79228162514264337593543950336';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
@@ -92,8 +92,8 @@ const deploymentFixture = deployments.createFixture(async () => {
     token1 = tmp;
   }
   // 0.91 - 1.07 price
-  const lowTick = 137220;
-  const highTick = 138840;
+  const lowTick = 45120;
+  const highTick = 46740;
   // Price = 1
   const price = '79299443975792720780679863727831';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
@@ -114,8 +114,8 @@ const deploymentFixture = deployments.createFixture(async () => {
     token1 = tmp;
   }
   // 0.91 - 1.07 price
-  const lowTick = 137220;
-  const highTick = 138840;
+  const lowTick = -46980;
+  const highTick = -45360;
   // Price = 1
   const price = '79299443975792720780679863727831';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
@@ -308,7 +308,6 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
   if(increaseCardinality) {
     await pool.increaseObservationCardinalityNext(100);
   }
-        
   
   // Deploy Incentivized CLR pool
   await lmTerminal.deployIncentivizedPool(

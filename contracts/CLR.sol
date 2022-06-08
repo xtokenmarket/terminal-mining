@@ -17,6 +17,8 @@ import "./TimeLock.sol";
 import "./interfaces/IERC20Extended.sol";
 import "./interfaces/IStakedCLRToken.sol";
 
+import "./interfaces/ILMTerminal.sol";
+
 contract CLR is
     Initializable,
     ERC20Upgradeable,
@@ -29,7 +31,9 @@ contract CLR is
     using SafeERC20 for IERC20;
 
     uint256 private constant INITIAL_MINT_AMOUNT = 100e18;
-    uint256 private constant SWAP_SLIPPAGE = 50; // 2%
+    uint256 private constant SWAP_SLIPPAGE = 50; // 2%, used in adminSwap
+    uint256 private constant NAV_SLIPPAGE = 100; // 1%, used in rebalance
+    uint256 private constant REBALANCE_COOLDOWN = 86400; // Timeout between rebalances
     // Used to give an identical token representation
     uint8 private constant TOKEN_DECIMAL_REPRESENTATION = 18;
 
@@ -61,6 +65,8 @@ contract CLR is
     address public manager;
     address terminal;
 
+    uint256 lastRebalanceTime;
+
     struct UniswapContracts {
         address router;
         address quoter;
@@ -78,6 +84,12 @@ contract CLR is
     event ManagerSet(address indexed manager);
     event Deposit(address indexed user, uint256 amount0, uint256 amount1);
     event Withdraw(address indexed user, uint256 amount0, uint256 amount1);
+    event Rebalanced(
+        int24 oldLowerTick,
+        int24 oldUpperTick,
+        int24 newLowerTick,
+        int24 newUpperTick
+    );
 
     function initialize(
         string memory _symbol,
@@ -269,7 +281,34 @@ contract CLR is
     }
 
     /**
+     * @dev Get net asset value of CLR contract
+     * @dev Uses Uniswap V3 twap and converts values to t1 terms
+     * @dev The value returned is with 18 decimals
+     */
+    function getNAV() public view returns (uint256 nav) {
+        return UniswapLibrary.getNav();
+    }
+
+    /**
+     * @dev Get Uni V3 Pool TWAP
+     * @dev The twap is a 64.64-bit fixed point number
+     */
+    function getTWAP() public view returns (int128 twap) {
+        uint256 tokenDiffDecimalMultiplier = 10 **
+            ((UniswapLibrary.subAbs(token0Decimals, token1Decimals)));
+        return
+            UniswapLibrary.getAsset0Price(
+                uniswapPool,
+                twapPeriod,
+                token0Decimals,
+                token1Decimals,
+                tokenDiffDecimalMultiplier
+            );
+    }
+
+    /**
      * @notice Get token balances in the position
+     * @dev Token balance is represented in native token decimals
      */
     function getStakedTokenBalance()
         public
@@ -395,6 +434,71 @@ contract CLR is
     }
 
     /**
+     * @dev Rebalance the current position to a new position with different ticks
+     * @dev Possible only if the pool is whitelisted in Terminal
+     */
+    function rebalance(
+        int24 newTickLower,
+        int24 newTickUpper,
+        uint256 minAmount0Staked,
+        uint256 minAmount1Staked
+    ) public onlyOwnerOrManager {
+        require(
+            newTickLower != tickLower || newTickUpper != tickUpper,
+            "Need to change ticks"
+        );
+        require(
+            ILMTerminal(terminal).isRebalanceEnabled(address(this)),
+            "Rebalance is not enabled for this pool"
+        );
+        require(
+            block.timestamp >= lastRebalanceTime + REBALANCE_COOLDOWN,
+            "Can only rebalance once per 24 hours"
+        );
+        uint256 navBefore = getNAV();
+
+        // withdraw entire liquidity from the position
+        (uint256 _amount0, uint256 _amount1) = withdrawAll();
+        // burn current position NFT
+        UniswapLibrary.burn(uniContracts.positionManager, tokenId);
+        // set new ticks and prices
+        int24 oldTickLower = tickLower;
+        int24 oldTickUpper = tickUpper;
+        tickLower = newTickLower;
+        tickUpper = newTickUpper;
+        priceLower = UniswapLibrary.getSqrtRatio(newTickLower);
+        priceUpper = UniswapLibrary.getSqrtRatio(newTickUpper);
+
+        (uint256 amount0, uint256 amount1) = calculatePoolMintedAmounts(
+            _amount0,
+            _amount1
+        );
+
+        // mint the position NFT and deposit the liquidity
+        // set new NFT token id
+        tokenId = createPosition(amount0, amount1);
+
+        // Check if balances are enough
+        (
+            uint256 stakedToken0Balance,
+            uint256 stakedToken1Balance
+        ) = getStakedTokenBalance();
+        require(
+            minAmount0Staked <= stakedToken0Balance &&
+                minAmount1Staked <= stakedToken1Balance,
+            "Staked token amounts after rebalance are not enough"
+        );
+        uint256 navAfter = getNAV();
+        require(
+            navAfter >= navBefore.sub(navBefore.div(NAV_SLIPPAGE)),
+            "Pool NAV impact is too high"
+        );
+        lastRebalanceTime = block.timestamp;
+
+        emit Rebalanced(oldTickLower, oldTickUpper, tickLower, tickUpper);
+    }
+
+    /**
      * @notice Admin function for staking in position
      */
     function adminStake(uint256 amount0, uint256 amount1)
@@ -451,6 +555,19 @@ contract CLR is
         uint128 liquidityAmount = getLiquidityForAmounts(amount0, amount1);
         (uint256 _amount0, uint256 _amount1) = unstakePosition(liquidityAmount);
         return collectPosition(uint128(_amount0), uint128(_amount1));
+    }
+
+    /**
+     * @dev Withdraws all current liquidity from the position
+     */
+    function withdrawAll()
+        private
+        returns (uint256 _amount0, uint256 _amount1)
+    {
+        // Collect fees
+        collect();
+        (_amount0, _amount1) = unstakePosition(getPositionLiquidity());
+        collectPosition(uint128(_amount0), uint128(_amount1));
     }
 
     /**
