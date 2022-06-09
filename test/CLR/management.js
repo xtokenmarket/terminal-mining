@@ -47,7 +47,7 @@ describe('Contract: CLR', async () => {
     }),
 
     it('shouldn\'t be able to reinvest if there\'s no balance in buffer', async () => {
-        await expect(clr.reinvest()).to.be.revertedWith('Rebalance amounts are 0');
+        await expect(clr.reinvest()).to.be.revertedWith('Reinvest amounts are 0');
     })
 
     it('should be able to pause and unpause the contract', async () => {

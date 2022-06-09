@@ -368,7 +368,7 @@ contract CLR is
      * @notice use in case there's leftover tokens in the contract
      */
     function reinvest() public onlyOwnerOrManager {
-        UniswapLibrary.rebalance(
+        UniswapLibrary.reinvest(
             UniswapLibrary.TokenDetails({
                 token0: address(token0),
                 token1: address(token1),

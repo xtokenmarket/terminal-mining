@@ -572,7 +572,7 @@ library UniswapLibrary {
      * @dev all or most of the tokens in the position, and
      * @dev no tokens in buffer balance ; swaps as necessary
      */
-    function rebalance(
+    function reinvest(
         TokenDetails memory tokenDetails,
         PositionDetails memory positionDetails
     ) public {
@@ -622,7 +622,7 @@ library UniswapLibrary {
             positionDetails.priceUpper,
             positionDetails.pool
         );
-        require(amount0 != 0 || amount1 != 0, "Rebalance amounts are 0");
+        require(amount0 != 0 || amount1 != 0, "Reinvest amounts are 0");
         stake(
             amount0,
             amount1,
@@ -632,7 +632,7 @@ library UniswapLibrary {
     }
 
     /**
-     * @dev Check if token amounts match before attempting rebalance in CLR
+     * @dev Check if token amounts match before attempting reinvest in CLR
      * @dev Uniswap contract requires deposits at a precise token ratio
      * @dev If they don't match, swap the tokens so as to deposit as much as possible
      * @param amount0ToMint how much token0 amount we want to deposit/withdraw

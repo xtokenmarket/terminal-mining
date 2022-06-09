@@ -47,9 +47,9 @@ const deploymentFixture = deployments.createFixture(async () => {
     token0 = token1;
     token1 = tmp;
   }
-  // 0.91 - 1.07 price
-  const lowTick = -960;
-  const highTick = 660;
+  // 0.94 - 1.06 price
+  const lowTick = -600;
+  const highTick = 600;
   // Price = 1
   const price = '79228162514264337593543950336';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
@@ -69,9 +69,9 @@ const deploymentFixture = deployments.createFixture(async () => {
     token0 = token1;
     token1 = tmp;
   }
-  // 0.91 - 1.07 price
-  const lowTick = -960;
-  const highTick = 660;
+  // 0.94 - 1.06 price
+  const lowTick = -600;
+  const highTick = 600;
   // Price = 1
   const price = '79228162514264337593543950336';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
@@ -95,7 +95,7 @@ const deploymentFixture = deployments.createFixture(async () => {
   const lowTick = 45120;
   const highTick = 46740;
   // Price = 1
-  const price = '79299443975792720780679863727831';
+  const price = '792123018063160355181610785112';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 });
 
@@ -117,7 +117,7 @@ const deploymentFixture = deployments.createFixture(async () => {
   const lowTick = -46980;
   const highTick = -45360;
   // Price = 1
-  const price = '79299443975792720780679863727831';
+  const price = '7924402639800795030682818884';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 });
 
@@ -139,7 +139,7 @@ const fixture_6_12_decimals = deployments.createFixture(async () => {
   const lowTick = 137220;
   const highTick = 138840;
   // Price = 1
-  const price = '79299443975792720780679863727831';
+  const price = '79220188129070905394287418468253';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 });
 
@@ -161,7 +161,7 @@ const fixture_12_6_decimals = deployments.createFixture(async () => {
   const lowTick = -139080;
   const highTick = -137460;
   // Price = 1
-  const price = '79156945126914824732836954';
+  const price = '79236137702167542579810491';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 })
 
