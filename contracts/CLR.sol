@@ -702,6 +702,8 @@ contract CLR is
 
     /**
      * @dev Calculates single-side minted amount
+     * @dev Takes an asset and amount and returns
+     * @dev the amounts to deposit in the pool in the correct ratio
      * @param inputAsset - use token0 if 0, token1 else
      * @param amount - amount to deposit/withdraw
      */
@@ -710,11 +712,28 @@ contract CLR is
         view
         returns (uint256 amount0Minted, uint256 amount1Minted)
     {
+        uint160 poolPrice = UniswapLibrary.getPoolPrice(uniswapPool);
         uint128 liquidityAmount;
-        if (inputAsset == 0) {
-            liquidityAmount = getLiquidityForAmounts(amount, type(uint112).max);
+
+        // In case the pool is out of range
+        if(poolPrice < priceLower) {
+            liquidityAmount = UniswapLibrary.getLiquidityForAmount0(priceLower, priceUpper, amount);
+        } else if(poolPrice > priceUpper) {
+            liquidityAmount = UniswapLibrary.getLiquidityForAmount1(priceLower, priceUpper, amount);
         } else {
-            liquidityAmount = getLiquidityForAmounts(type(uint112).max, amount);
+            if (inputAsset == 0) {
+                liquidityAmount = UniswapLibrary.getLiquidityForAmount0(
+                    poolPrice,
+                    priceUpper,
+                    amount
+                );
+            } else {
+                liquidityAmount = UniswapLibrary.getLiquidityForAmount1(
+                    priceLower,
+                    poolPrice,
+                    amount
+                );
+            }
         }
         (amount0Minted, amount1Minted) = getAmountsForLiquidity(
             liquidityAmount
