@@ -72,9 +72,11 @@ describe('Contract: RewardEscrow', async () => {
           await token1.approve(pool2.address, bnDecimal(100000000000));
           await token0.connect(user1).approve(pool2.address, bnDecimal(100000000000));
           await token1.connect(user1).approve(pool2.address, bnDecimal(100000000000));
-          await pool1.deposit(0, bnDecimals(100000, token0Decimals));
+          let amts1 = await pool1.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+          let amts2 = await pool1.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+          await pool1.deposit(amts1.amount0Minted, amts1.amount1Minted);
           await increaseTime(300);
-          await pool2.deposit(0, bnDecimals(100000, token0Decimals));
+          await pool2.deposit(amts2.amount0Minted, amts2.amount1Minted);
           await increaseTime(300);
 
           // Initiate reward programs

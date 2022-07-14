@@ -21,7 +21,7 @@ const deploymentFixture = deployments.createFixture(async () => {
     let token1 = await deployArgs('ERC20Basic', 'XTK', 'XTK');
     let rewardToken = await deployArgs('ERC20Basic', 'DAI', 'DAI');
     // Tokens must be sorted by address
-    if(token0.address > token1.address) {
+    if(token0.address.toLowerCase() > token1.address.toLowerCase()) {
       let tmp = token0;
       token0 = token1;
       token1 = tmp;

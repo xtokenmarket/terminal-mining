@@ -29,6 +29,10 @@ describe('Contract: CLR', async () => {
         let position = await clr.getStakedTokenBalance();
         expect(position.amount0).not.to.be.eq(0);
         expect(position.amount1).not.to.be.eq(0);
+    }),
+
+    it('should be able to get the withdraw amounts for clr balance', async () => {
+        await expect(clr.calculateWithdrawAmounts(1000)).not.to.be.reverted;
     })
   })
 })

@@ -101,8 +101,6 @@ describe('Contract: LMTerminal', async () => {
         }),
 
         it('should be able to deploy an incentivized pool with reversed token order', async () => {
-            let rewardProgramDuration = '7257600';
-
             await lmTerminal.deployIncentivizedPool(
                 'wETH-XTK-CLR',
                 { lowerTick: -600, upperTick: 600 }, 

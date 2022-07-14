@@ -26,7 +26,6 @@ describe('Contract: LM Terminal', async () => {
 
           await increaseTime(300);
 
-  
           const clrPoolAddress = await lmTerminal.deployedCLRPools(0);
           clr = await ethers.getContractAt('CLR', clrPoolAddress);
           const stakedTokenAddress = await clr.stakedToken();
@@ -38,36 +37,40 @@ describe('Contract: LM Terminal', async () => {
           await token1.connect(user1).approve(clr.address, bnDecimal(100000000000));
           await token0.connect(user2).approve(clr.address, bnDecimal(100000000000));
           await token1.connect(user2).approve(clr.address, bnDecimal(100000000000));
-          await clr.deposit(0, bnDecimals(100000, token0Decimals));
-          await clr.connect(user1).deposit(0, bnDecimals(100000, token0Decimals));
-          await clr.connect(user2).deposit(0, bnDecimals(100000, token0Decimals));
+          let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+          await clr.deposit(amts.amount0Minted, amts.amount1Minted);
+          await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
+          await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
           await increaseTime(300);
     })
 
   describe('Mint, burn and transfer lock', async () => {
     it(`account shouldn\'t be able to call mint, burn and transfer 
-            before 24 hours have passed`, async () => {
-        await clr.deposit(0, bnDecimals(100000, token0Decimals));
-        await expect(clr.withdraw(bnDecimal(1))).
+            before 5 minutes have passed`, async () => {
+        let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
+        await expect(clr.withdraw(bnDecimal(1), 0, 0)).
             to.be.reverted;
         await expect(stakedToken.transfer(user1.address, bnDecimal(10000))).
             to.be.reverted;
     }),
 
     it(`account shouldn\'t be able to call burn, mint and transfer 
-            before 24 hours have passed`, async () => {
-        await clr.withdraw(bnDecimal(1));
-        await expect(clr.deposit(0, bnDecimals(100000, token0Decimals))).
+            before 5 minutes have passed`, async () => {
+        await clr.withdraw(bnDecimal(1), 0, 0);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+        await expect(clr.deposit(amts.amount0Minted, amts.amount1Minted)).
             to.be.reverted;
         await expect(stakedToken.transfer(user1.address, bnDecimal(10000))).
             to.be.reverted;
     }),
 
     it(`no account should be able to call transferFrom from sender address
-         which has called mint before 24 hours have passed`, async () => {
+         which has called mint before 5 minutes have passed`, async () => {
         await stakedToken.approve(user1.address, bnDecimal(100000));
         await stakedToken.approve(user2.address, bnDecimal(100000));
-        await clr.deposit(0, bnDecimals(100000, token0Decimals));
+        let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         await expect(stakedToken.connect(user1).transferFrom(admin.address, user1.address, bnDecimal(10000))).
             to.be.reverted;
         await expect(stakedToken.connect(user2).transferFrom(admin.address, user1.address, bnDecimal(10000))).
@@ -75,10 +78,10 @@ describe('Contract: LM Terminal', async () => {
     }),
 
     it(`no account should be able to call transferFrom from sender address
-         which has called burn before 24 hours have passed`, async () => {
+         which has called burn before 5 minutes have passed`, async () => {
         await stakedToken.approve(user1.address, bnDecimal(100000));
         await stakedToken.approve(user2.address, bnDecimal(100000));
-        await clr.withdraw(bnDecimal(1));
+        await clr.withdraw(bnDecimal(1), 0, 0);
         await expect(stakedToken.connect(user1).transferFrom(admin.address, user1.address, bnDecimal(10000))).
             to.be.reverted;
         await expect(stakedToken.connect(user2).transferFrom(admin.address, user1.address, bnDecimal(10000))).
@@ -86,26 +89,29 @@ describe('Contract: LM Terminal', async () => {
     }),
 
     it(`account should be able to call mint, burn, transfer or transferFrom 
-            if more than 24 hours have passed`, async () => {
-        await clr.deposit(0, bnDecimals(100000, token0Decimals));
+            if more than 5 minutes have passed`, async () => {
+        let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         await increaseTime(300);
-        await clr.withdraw(bnDecimal(1));
+        await clr.withdraw(bnDecimal(1), 0, 0);
     }),
 
     it('other accounts should be able to call mint even if one is locked', async () => {
-        await clr.deposit(0, bnDecimals(100000, token0Decimals));
-        await expect(clr.deposit(0, bnDecimals(100000, token0Decimals))).
+        let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
+        await expect(clr.deposit(amts.amount0Minted, amts.amount1Minted)).
             to.be.reverted;
-        await clr.connect(user1).deposit(0, bnDecimals(100000, token0Decimals));
-        await clr.connect(user2).deposit(0, bnDecimals(100000, token0Decimals));
+        await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
+        await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
     }),
 
     it('other accounts should be able to call burn even if one is locked', async () => {
-        await clr.deposit(0, bnDecimals(100000, token0Decimals));
-        await expect(clr.deposit(0, bnDecimals(100000, token0Decimals))).
+        let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
+        await expect(clr.deposit(amts.amount0Minted, amts.amount1Minted)).
             to.be.reverted;
-        await clr.connect(user1).withdraw(bnDecimal(1));
-        await clr.connect(user2).withdraw(bnDecimal(1));
+        await clr.connect(user1).withdraw(bnDecimal(1), 0, 0);
+        await clr.connect(user2).withdraw(bnDecimal(1), 0, 0);
     })
   })
 })

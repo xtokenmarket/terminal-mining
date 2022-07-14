@@ -33,21 +33,23 @@ describe('Contract: StakedCLRToken', async () => {
   
           await token0.approve(clr.address, bnDecimal(100000000000));
           await token1.approve(clr.address, bnDecimal(100000000000));
-          await clr.deposit(0, bnDecimals(100000, token0Decimals));
+          let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+          await clr.deposit(amts.amount0Minted, amts.amount1Minted);
           await increaseTime(300);
     })
 
   describe('Staked token', async () => {
     it(`account should receive staked token on liquidity provision`, async () => {
         let stakedTokenBalanceBefore = await stakedToken.balanceOf(admin.address);
-        await clr.deposit(0, bnDecimals(100000, token0Decimals));
+        let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         let stakedTokenBalanceAfter = await stakedToken.balanceOf(admin.address);
         expect(stakedTokenBalanceAfter).to.be.gt(stakedTokenBalanceBefore);
     }),
 
     it(`account should burn staked token on liquidity removal`, async () => {
         let stakedTokenBalanceBefore = await stakedToken.balanceOf(admin.address);
-        await clr.withdraw(bnDecimals(1, token0Decimals));
+        await clr.withdraw(bnDecimals(1, token0Decimals), 0, 0);
         let stakedTokenBalanceAfter = await stakedToken.balanceOf(admin.address);
         expect(stakedTokenBalanceBefore).to.be.gt(stakedTokenBalanceAfter);
     }),

@@ -4,7 +4,7 @@ const { bnDecimal, getPriceInX96, getBalance, deploy,
         swapToken0ForToken1, swapToken1ForToken0 } = require('../../scripts/helpers');
 const { deploymentFixture } = require('../fixture');
 
-// Reward initialization tests
+// Fee tests
 describe('Contract: LMTerminal', async () => {
   let lmTerminal, token0, token1, rewardToken, swapRouter;
   let admin, user1, user2, user3;
