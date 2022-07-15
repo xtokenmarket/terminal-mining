@@ -149,24 +149,24 @@ contract CLR is
     /**
      *  @dev Mint CLR tokens by depositing LP tokens
      *  @dev Minted tokens are staked in CLR instance, while address receives a receipt token
-     *  @param inputAsset asset to mint with (0 - token 0, 1 - token 1)
-     *  @param amount asset mint amount
+     *  @param amount0 token 0 amount
+     *  @param amount1 token 1 amount
      */
-    function deposit(uint8 inputAsset, uint256 amount) external whenNotPaused {
-        require(amount > 0);
-        (uint256 amount0, uint256 amount1) = calculateAmountsMintedSingleToken(
-            inputAsset,
-            amount
-        );
+    function deposit(uint256 amount0, uint256 amount1) external whenNotPaused {
+        require(amount0 > 0 || amount1 > 0);
 
-        // Check if address has enough balance
-        uint256 token0Balance = token0.balanceOf(msg.sender);
-        uint256 token1Balance = token1.balanceOf(msg.sender);
-        if (amount0 > token0Balance || amount1 > token1Balance) {
-            amount0 = amount0 > token0Balance ? token0Balance : amount0;
-            amount1 = amount1 > token1Balance ? token1Balance : amount1;
-            (amount0, amount1) = calculatePoolMintedAmounts(amount0, amount1);
-        }
+        (
+            uint256 amount0Minted,
+            uint256 amount1Minted
+        ) = calculatePoolMintedAmounts(amount0, amount1);
+        require(
+            amount0Minted >= amount0.mul(99).div(100) &&
+                amount0Minted <= amount0 &&
+                amount1Minted >= amount1.mul(99).div(100) &&
+                amount1Minted <= amount1,
+            "Price slippage check"
+        );
+        (amount0, amount1) = (amount0Minted, amount1Minted);
 
         token0.safeTransferFrom(msg.sender, address(this), amount0);
         token1.safeTransferFrom(msg.sender, address(this), amount1);
@@ -188,8 +188,14 @@ contract CLR is
     /**
      *  @dev Withdraw LP tokens by burning staked CLR tokens
      *  @param amount amount of CLR tokens user wants to burn
+     *  @param minReceivedAmount0 min received amount of token 0
+     *  @param minReceivedAmount1 min received amount of token 1
      */
-    function withdraw(uint256 amount) public {
+    function withdraw(
+        uint256 amount,
+        uint256 minReceivedAmount0,
+        uint256 minReceivedAmount1
+    ) public {
         require(amount > 0);
 
         uint256 addressBalance = stakedBalanceOf(msg.sender);
@@ -197,11 +203,10 @@ contract CLR is
             amount <= addressBalance,
             "Address doesn't have enough balance to burn"
         );
-
-        uint256 totalSupply = totalSupply();
-        (uint256 token0Staked, uint256 token1Staked) = getStakedTokenBalance();
-        uint256 proRataToken0 = amount.mul(token0Staked).div(totalSupply);
-        uint256 proRataToken1 = amount.mul(token1Staked).div(totalSupply);
+        (
+            uint256 withdrawAmount0,
+            uint256 withdrawAmount1
+        ) = calculateWithdrawAmounts(amount);
 
         // Burn receipt token
         stakedToken.burnFrom(msg.sender, amount);
@@ -210,9 +215,15 @@ contract CLR is
         // Burn Staked CLR token
         super._burn(address(this), amount);
 
+        // Withdraw
         (uint256 unstakedAmount0, uint256 unstakedAmount1) = _unstake(
-            proRataToken0,
-            proRataToken1
+            withdrawAmount0,
+            withdrawAmount1
+        );
+        require(
+            unstakedAmount0 >= minReceivedAmount0 &&
+                unstakedAmount1 >= minReceivedAmount1,
+            "Less than expected amounts"
         );
         token0.safeTransfer(msg.sender, unstakedAmount0);
         token1.safeTransfer(msg.sender, unstakedAmount1);
@@ -222,10 +233,16 @@ contract CLR is
     /**
      *  @dev Withdraw LP tokens and claim user rewards
      *  @param amount amount of CLR tokens user wants to burn
+     *  @param minReceivedAmount0 min received amount of token 0
+     *  @param minReceivedAmount1 min received amount of token 1
      */
-    function withdrawAndClaimReward(uint256 amount) external {
+    function withdrawAndClaimReward(
+        uint256 amount,
+        uint256 minReceivedAmount0,
+        uint256 minReceivedAmount1
+    ) external {
         claimReward();
-        withdraw(amount);
+        withdraw(amount, minReceivedAmount0, minReceivedAmount1);
     }
 
     /**
@@ -297,6 +314,21 @@ contract CLR is
         } else {
             mintAmount = amount0.mul(totalSupply).div(token0Staked);
         }
+    }
+
+    /**
+     * @dev Get the expected LP amounts on withdraw given a staked token balance
+     * @param stakedBalance amount of staked CLR tokens
+     */
+    function calculateWithdrawAmounts(uint256 stakedBalance)
+        public
+        view
+        returns (uint256 amount0, uint256 amount1)
+    {
+        uint256 totalSupply = totalSupply();
+        (uint256 token0Staked, uint256 token1Staked) = getStakedTokenBalance();
+        amount0 = stakedBalance.mul(token0Staked).div(totalSupply);
+        amount1 = stakedBalance.mul(token1Staked).div(totalSupply);
     }
 
     /* ========================================================================================= */
@@ -702,6 +734,8 @@ contract CLR is
 
     /**
      * @dev Calculates single-side minted amount
+     * @dev Takes an asset and amount and returns
+     * @dev the amounts to deposit in the pool in the correct ratio
      * @param inputAsset - use token0 if 0, token1 else
      * @param amount - amount to deposit/withdraw
      */
@@ -710,11 +744,36 @@ contract CLR is
         view
         returns (uint256 amount0Minted, uint256 amount1Minted)
     {
+        uint160 poolPrice = UniswapLibrary.getPoolPrice(uniswapPool);
         uint128 liquidityAmount;
-        if (inputAsset == 0) {
-            liquidityAmount = getLiquidityForAmounts(amount, type(uint112).max);
+
+        // In case the pool is out of range
+        if (poolPrice < priceLower) {
+            liquidityAmount = UniswapLibrary.getLiquidityForAmount0(
+                priceLower,
+                priceUpper,
+                amount
+            );
+        } else if (poolPrice > priceUpper) {
+            liquidityAmount = UniswapLibrary.getLiquidityForAmount1(
+                priceLower,
+                priceUpper,
+                amount
+            );
         } else {
-            liquidityAmount = getLiquidityForAmounts(type(uint112).max, amount);
+            if (inputAsset == 0) {
+                liquidityAmount = UniswapLibrary.getLiquidityForAmount0(
+                    poolPrice,
+                    priceUpper,
+                    amount
+                );
+            } else {
+                liquidityAmount = UniswapLibrary.getLiquidityForAmount1(
+                    priceLower,
+                    poolPrice,
+                    amount
+                );
+            }
         }
         (amount0Minted, amount1Minted) = getAmountsForLiquidity(
             liquidityAmount
@@ -785,5 +844,12 @@ contract CLR is
                 token1Decimals,
                 token1DecimalMultiplier
             );
+    }
+
+    /**
+     * @dev Returns the current version of the CLR instance
+     */
+    function getVersion() public pure returns (string memory version) {
+        return "v1.0.5";
     }
 }

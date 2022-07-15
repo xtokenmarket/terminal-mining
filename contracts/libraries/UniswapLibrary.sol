@@ -94,6 +94,30 @@ library UniswapLibrary {
         return pool.liquidity();
     }
 
+    function getLiquidityForAmount0(
+        uint160 priceLower,
+        uint160 priceUpper,
+        uint256 amount0
+    ) public pure returns (uint128 liquidity) {
+        liquidity = LiquidityAmounts.getLiquidityForAmount0(
+            priceLower,
+            priceUpper,
+            amount0
+        );
+    }
+
+    function getLiquidityForAmount1(
+        uint160 priceLower,
+        uint160 priceUpper,
+        uint256 amount1
+    ) public pure returns (uint128 liquidity) {
+        liquidity = LiquidityAmounts.getLiquidityForAmount1(
+            priceLower,
+            priceUpper,
+            amount1
+        );
+    }
+
     /**
      * @dev Calculate pool liquidity for given token amounts
      */

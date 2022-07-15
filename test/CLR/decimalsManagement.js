@@ -13,18 +13,21 @@ describe('Contract: CLR', async () => {
       ({ lmTerminal, token0, token1, clr, stakedToken, router, token0Decimals, token1Decimals } = 
           await fixture_12_6_decimals());
       [admin, user1, user2, user3, user4, ...addrs] = await ethers.getSigners();
-      const amount = bnDecimals(1000000, token0Decimals);
-      await clr.deposit(0, amount);
+      let amount0 = bnDecimals(1000000, token0Decimals);
+      let amount1 = bnDecimals(1000000, token1Decimals);
+      let expectedAmounts = await clr.calculatePoolMintedAmounts(amount0, amount1);
+      await clr.deposit(expectedAmounts.amount0Minted, expectedAmounts.amount1Minted);
       await increaseTime(300);
   })
 
   describe(`Management with token 0 decimals = 12 and token 1 decimals = 6`, async () => {
     it('should be able to rebalance', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(0, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000000));
