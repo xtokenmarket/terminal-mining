@@ -14,7 +14,8 @@ describe('Contract: CLR', async () => {
           await deploymentFixture());
       [admin, user1, user2, user3, user4, ...addrs] = await ethers.getSigners();
       const amount = bnDecimals(100000, token0Decimals);
-      await clr.deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.deposit(amts.amount0Minted, amts.amount1Minted);
       await increaseTime(300);
   })
 
@@ -22,9 +23,11 @@ describe('Contract: CLR', async () => {
     it('should be able to rebalance with less token 0 balance', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
         let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, mintAmount);
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(1, mintAmount2);
+        amts = await clr.calculateAmountsMintedSingleToken(1, mintAmount2);
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         await swapToken0ForToken1(router, token0, token1, admin.address, bnDecimal(100000));
         await swapToken1ForToken0(router, token0, token1, admin.address, bnDecimal(100000));
         await clr.collect();
@@ -40,9 +43,11 @@ describe('Contract: CLR', async () => {
     it('should be able to rebalance with less token 1 balance', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
         let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, mintAmount);
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(1, mintAmount2);
+        amts = await clr.calculateAmountsMintedSingleToken(1, mintAmount2);
+        await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         await swapToken0ForToken1(router, token0, token1, admin.address, bnDecimal(100000));
         await swapToken1ForToken0(router, token0, token1, admin.address, bnDecimal(100000));
         await clr.collect();

@@ -4,8 +4,6 @@ const { expect } = require('chai');
 
 // Mint and burn tests for CLR
 describe('Contract: CLR', async () => {
-  let lmTerminal, clr, token0, token1, rewardToken, admin, user1, user2, user3, user4;
-  let router, token0Decimals, token1Decimals
 
   describe('Mint and burn with same token decimals', async () => {
     beforeEach(async () => {
@@ -16,10 +14,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
-        let amount = bnDecimals(10000000, token0Decimals);
+        let amount = bnDecimals(1000000, token0Decimals);
         let t0bb = await token0.balanceOf(user1.address);
         let t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).deposit(0, amount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
         let t0ba = await token0.balanceOf(user1.address);
         let t1ba = await token1.balanceOf(user1.address);
         let t0sent = t0bb.sub(t0ba);
@@ -30,7 +29,8 @@ describe('Contract: CLR', async () => {
         amount = bnDecimals(777777, token0Decimals);
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).deposit(0, amount);
+        amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         let t0sent2 = t0bb.sub(t0ba);
@@ -42,7 +42,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user1
         t0bb = await token0.balanceOf(user1.address);
         t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).withdraw(stakedBalanceUser1);
+        await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
         t0ba = await token0.balanceOf(user1.address);
         t1ba = await token1.balanceOf(user1.address);
         let t0received = t0ba.sub(t0bb);
@@ -55,7 +55,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user2
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).withdraw(stakedBalanceUser2);
+        await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         t0received = t0ba.sub(t0bb);
@@ -67,10 +67,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -81,7 +82,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -93,7 +95,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -106,7 +108,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -122,7 +124,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -133,7 +136,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -145,7 +149,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -157,7 +161,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -172,7 +176,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -183,7 +188,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -195,7 +201,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -207,7 +213,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -227,10 +233,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -241,7 +248,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -253,7 +261,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -266,7 +274,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -278,10 +286,11 @@ describe('Contract: CLR', async () => {
   })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -289,10 +298,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -304,7 +314,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -317,7 +327,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -333,7 +343,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -344,7 +355,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -356,7 +368,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -368,7 +380,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -380,10 +392,11 @@ describe('Contract: CLR', async () => {
 
      it('shouldn\'t be able to withdraw more than sent tokens with asset 1', async () => {
       // deposit from user1
-      let amount = bnDecimals(1000000, token0Decimals);
+      let amount = bnDecimals(1000000, token1Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -391,10 +404,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -406,7 +420,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -418,7 +432,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -438,10 +452,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -452,7 +467,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -464,7 +480,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -477,7 +493,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -489,10 +505,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -500,10 +517,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -515,7 +533,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -528,7 +546,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -544,7 +562,8 @@ describe('Contract: CLR', async () => {
         let amount = bnDecimals(1000000, token0Decimals);
         let t0bb = await token0.balanceOf(user1.address);
         let t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).deposit(0, amount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
         let t0ba = await token0.balanceOf(user1.address);
         let t1ba = await token1.balanceOf(user1.address);
         let t0sent = t0bb.sub(t0ba);
@@ -555,7 +574,8 @@ describe('Contract: CLR', async () => {
         amount = bnDecimals(777777, token0Decimals);
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).deposit(0, amount);
+        amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         let t0sent2 = t0bb.sub(t0ba);
@@ -567,7 +587,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user1
         t0bb = await token0.balanceOf(user1.address);
         t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).withdraw(stakedBalanceUser1);
+        await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
         t0ba = await token0.balanceOf(user1.address);
         t1ba = await token1.balanceOf(user1.address);
         let t0received = t0ba.sub(t0bb);
@@ -579,7 +599,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user2
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).withdraw(stakedBalanceUser2);
+        await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         t0received = t0ba.sub(t0bb);
@@ -594,7 +614,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -602,10 +623,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -617,7 +639,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -629,7 +651,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -650,10 +672,11 @@ describe('Contract: CLR', async () => {
 
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -664,7 +687,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -676,7 +700,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -689,7 +713,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -701,10 +725,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -712,10 +737,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -727,7 +753,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -740,7 +766,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -756,7 +782,8 @@ describe('Contract: CLR', async () => {
         let amount = bnDecimals(1000000, token0Decimals);
         let t0bb = await token0.balanceOf(user1.address);
         let t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).deposit(0, amount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
         let t0ba = await token0.balanceOf(user1.address);
         let t1ba = await token1.balanceOf(user1.address);
         let t0sent = t0bb.sub(t0ba);
@@ -767,7 +794,8 @@ describe('Contract: CLR', async () => {
         amount = bnDecimals(777777, token0Decimals);
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).deposit(0, amount);
+        amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         let t0sent2 = t0bb.sub(t0ba);
@@ -779,7 +807,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user1
         t0bb = await token0.balanceOf(user1.address);
         t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).withdraw(stakedBalanceUser1);
+        await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
         t0ba = await token0.balanceOf(user1.address);
         t1ba = await token1.balanceOf(user1.address);
         let t0received = t0ba.sub(t0bb);
@@ -791,7 +819,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user2
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).withdraw(stakedBalanceUser2);
+        await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         t0received = t0ba.sub(t0bb);
@@ -806,7 +834,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -814,10 +843,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -829,7 +859,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -841,7 +871,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -862,10 +892,11 @@ describe('Contract: CLR', async () => {
 
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -876,7 +907,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -888,7 +920,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -901,7 +933,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -913,10 +945,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -924,10 +957,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -939,7 +973,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -952,7 +986,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -968,7 +1002,8 @@ describe('Contract: CLR', async () => {
         let amount = bnDecimals(1000000, token0Decimals);
         let t0bb = await token0.balanceOf(user1.address);
         let t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).deposit(0, amount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
         let t0ba = await token0.balanceOf(user1.address);
         let t1ba = await token1.balanceOf(user1.address);
         let t0sent = t0bb.sub(t0ba);
@@ -979,7 +1014,8 @@ describe('Contract: CLR', async () => {
         amount = bnDecimals(777777, token0Decimals);
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).deposit(0, amount);
+        amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         let t0sent2 = t0bb.sub(t0ba);
@@ -991,7 +1027,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user1
         t0bb = await token0.balanceOf(user1.address);
         t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).withdraw(stakedBalanceUser1);
+        await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
         t0ba = await token0.balanceOf(user1.address);
         t1ba = await token1.balanceOf(user1.address);
         let t0received = t0ba.sub(t0bb);
@@ -1003,7 +1039,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user2
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).withdraw(stakedBalanceUser2);
+        await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         t0received = t0ba.sub(t0bb);
@@ -1018,7 +1054,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1026,10 +1063,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1041,7 +1079,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1053,7 +1091,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1073,10 +1111,11 @@ describe('Contract: CLR', async () => {
     })
     
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1087,7 +1126,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1099,7 +1139,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1112,7 +1152,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1124,10 +1164,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1135,10 +1176,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1150,7 +1192,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1163,7 +1205,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1179,7 +1221,8 @@ describe('Contract: CLR', async () => {
         let amount = bnDecimals(1000000, token0Decimals);
         let t0bb = await token0.balanceOf(user1.address);
         let t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).deposit(0, amount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
         let t0ba = await token0.balanceOf(user1.address);
         let t1ba = await token1.balanceOf(user1.address);
         let t0sent = t0bb.sub(t0ba);
@@ -1190,7 +1233,8 @@ describe('Contract: CLR', async () => {
         amount = bnDecimals(777777, token0Decimals);
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).deposit(0, amount);
+        amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         let t0sent2 = t0bb.sub(t0ba);
@@ -1202,7 +1246,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user1
         t0bb = await token0.balanceOf(user1.address);
         t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).withdraw(stakedBalanceUser1);
+        await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
         t0ba = await token0.balanceOf(user1.address);
         t1ba = await token1.balanceOf(user1.address);
         let t0received = t0ba.sub(t0bb);
@@ -1214,7 +1258,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user2
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).withdraw(stakedBalanceUser2);
+        await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         t0received = t0ba.sub(t0bb);
@@ -1229,7 +1273,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1237,10 +1282,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1252,7 +1298,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1264,7 +1310,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1285,10 +1331,11 @@ describe('Contract: CLR', async () => {
 
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1299,7 +1346,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1311,7 +1359,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1324,7 +1372,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1336,10 +1384,11 @@ describe('Contract: CLR', async () => {
     })
 
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1347,10 +1396,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1362,7 +1412,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1375,7 +1425,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1391,7 +1441,8 @@ describe('Contract: CLR', async () => {
         let amount = bnDecimals(1000000, token0Decimals);
         let t0bb = await token0.balanceOf(user1.address);
         let t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).deposit(0, amount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
         let t0ba = await token0.balanceOf(user1.address);
         let t1ba = await token1.balanceOf(user1.address);
         let t0sent = t0bb.sub(t0ba);
@@ -1402,7 +1453,8 @@ describe('Contract: CLR', async () => {
         amount = bnDecimals(777777, token0Decimals);
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).deposit(0, amount);
+        amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         let t0sent2 = t0bb.sub(t0ba);
@@ -1414,7 +1466,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user1
         t0bb = await token0.balanceOf(user1.address);
         t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).withdraw(stakedBalanceUser1);
+        await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
         t0ba = await token0.balanceOf(user1.address);
         t1ba = await token1.balanceOf(user1.address);
         let t0received = t0ba.sub(t0bb);
@@ -1426,7 +1478,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user2
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).withdraw(stakedBalanceUser2);
+        await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         t0received = t0ba.sub(t0bb);
@@ -1441,7 +1493,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1449,10 +1502,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1464,7 +1518,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1476,7 +1530,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1498,10 +1552,11 @@ describe('Contract: CLR', async () => {
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
         let stakedBalance = await clr.getStakedTokenBalance();
         expect(stakedBalance.amount1).to.be.eq(0);
-        let amount = bnDecimals(10000000, token0Decimals);
+        let amount = bnDecimals(1000000, token0Decimals);
         let t0bb = await token0.balanceOf(user1.address);
         let t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).deposit(0, amount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
         let t0ba = await token0.balanceOf(user1.address);
         let t1ba = await token1.balanceOf(user1.address);
         let t0sent = t0bb.sub(t0ba);
@@ -1513,7 +1568,8 @@ describe('Contract: CLR', async () => {
         amount = bnDecimals(777777, token0Decimals);
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).deposit(0, amount);
+        amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         let t0sent2 = t0bb.sub(t0ba);
@@ -1526,7 +1582,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user1
         t0bb = await token0.balanceOf(user1.address);
         t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).withdraw(stakedBalanceUser1);
+        await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
         t0ba = await token0.balanceOf(user1.address);
         t1ba = await token1.balanceOf(user1.address);
         let t0received = t0ba.sub(t0bb);
@@ -1539,7 +1595,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user2
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).withdraw(stakedBalanceUser2);
+        await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         t0received = t0ba.sub(t0bb);
@@ -1553,10 +1609,11 @@ describe('Contract: CLR', async () => {
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
       let stakedBalance = await clr.getStakedTokenBalance();
       expect(stakedBalance.amount1).to.be.eq(0);
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1565,10 +1622,11 @@ describe('Contract: CLR', async () => {
       expect(t1sent).to.be.eq(0);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1581,7 +1639,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1594,7 +1652,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1612,7 +1670,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1624,7 +1683,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1637,7 +1697,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1649,7 +1709,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1666,7 +1726,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1675,10 +1736,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1691,7 +1753,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1703,7 +1765,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1725,10 +1787,11 @@ describe('Contract: CLR', async () => {
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 0', async () => {
         let stakedBalance = await clr.getStakedTokenBalance();
         expect(stakedBalance.amount0).to.be.eq(0);
-        let amount = bnDecimals(10000000, token0Decimals);
+        let amount = bnDecimals(1000000, token0Decimals);
         let t0bb = await token0.balanceOf(user1.address);
         let t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).deposit(0, amount);
+        let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
         let t0ba = await token0.balanceOf(user1.address);
         let t1ba = await token1.balanceOf(user1.address);
         let t0sent = t0bb.sub(t0ba);
@@ -1740,7 +1803,8 @@ describe('Contract: CLR', async () => {
         amount = bnDecimals(777777, token0Decimals);
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).deposit(0, amount);
+        amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         let t0sent2 = t0bb.sub(t0ba);
@@ -1753,7 +1817,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user1
         t0bb = await token0.balanceOf(user1.address);
         t1bb = await token1.balanceOf(user1.address);
-        await clr.connect(user1).withdraw(stakedBalanceUser1);
+        await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
         t0ba = await token0.balanceOf(user1.address);
         t1ba = await token1.balanceOf(user1.address);
         let t0received = t0ba.sub(t0bb);
@@ -1766,7 +1830,7 @@ describe('Contract: CLR', async () => {
         // withdraw from user2
         t0bb = await token0.balanceOf(user2.address);
         t1bb = await token1.balanceOf(user2.address);
-        await clr.connect(user2).withdraw(stakedBalanceUser2);
+        await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
         t0ba = await token0.balanceOf(user2.address);
         t1ba = await token1.balanceOf(user2.address);
         t0received = t0ba.sub(t0bb);
@@ -1780,10 +1844,11 @@ describe('Contract: CLR', async () => {
     it('user should be able to receive all of his deposited tokens on withdraw when depositing with asset 1', async () => {
       let stakedBalance = await clr.getStakedTokenBalance();
       expect(stakedBalance.amount0).to.be.eq(0);
-      let amount = bnDecimals(10000000, token0Decimals);
+      let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1792,10 +1857,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1808,7 +1874,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1821,7 +1887,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1839,7 +1905,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(0, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1851,7 +1918,8 @@ describe('Contract: CLR', async () => {
       amount = bnDecimals(777777, token0Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(0, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1864,7 +1932,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1876,7 +1944,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);
@@ -1893,7 +1961,8 @@ describe('Contract: CLR', async () => {
       let amount = bnDecimals(1000000, token0Decimals);
       let t0bb = await token0.balanceOf(user1.address);
       let t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).deposit(1, amount);
+      let amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
       let t0ba = await token0.balanceOf(user1.address);
       let t1ba = await token1.balanceOf(user1.address);
       let t0sent = t0bb.sub(t0ba);
@@ -1902,10 +1971,11 @@ describe('Contract: CLR', async () => {
       let stakedBalanceUser1 = await stakedToken.balanceOf(user1.address);
 
       // deposit from user2
-      amount = bnDecimals(777777, token0Decimals);
+      amount = bnDecimals(777777, token1Decimals);
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).deposit(1, amount);
+      amts = await clr.calculateAmountsMintedSingleToken(1, amount);
+      await clr.connect(user2).deposit(amts.amount0Minted, amts.amount1Minted);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       let t0sent2 = t0bb.sub(t0ba);
@@ -1918,7 +1988,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user1
       t0bb = await token0.balanceOf(user1.address);
       t1bb = await token1.balanceOf(user1.address);
-      await clr.connect(user1).withdraw(stakedBalanceUser1);
+      await clr.connect(user1).withdraw(stakedBalanceUser1, 0, 0);
       t0ba = await token0.balanceOf(user1.address);
       t1ba = await token1.balanceOf(user1.address);
       let t0received = t0ba.sub(t0bb);
@@ -1930,7 +2000,7 @@ describe('Contract: CLR', async () => {
       // withdraw from user2
       t0bb = await token0.balanceOf(user2.address);
       t1bb = await token1.balanceOf(user2.address);
-      await clr.connect(user2).withdraw(stakedBalanceUser2);
+      await clr.connect(user2).withdraw(stakedBalanceUser2, 0, 0);
       t0ba = await token0.balanceOf(user2.address);
       t1ba = await token1.balanceOf(user2.address);
       t0received = t0ba.sub(t0bb);

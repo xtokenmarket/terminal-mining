@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { bnDecimals, swapToken1ForToken0Decimals, bnDecimal, swapToken1ForToken0, swapToken0ForToken1 } = require('../../scripts/helpers');
+const { bnDecimals, bnDecimal, swapToken1ForToken0, swapToken0ForToken1 } = require('../../scripts/helpers');
 const { deploymentFixture } = require('./fixture');
 
 // Events tests for CLR
@@ -26,16 +26,17 @@ describe('Contract: CLR', async () => {
     }),
 
     it('should emit event on deposit', async () => {
-        let amount = bnDecimals(1000, token0Decimals);
-        await expect(clr.connect(user1).deposit(0, amount)).to.emit(clr, 'Deposit');
+        let amount0 = bnDecimals(1000, token0Decimals);
+        let mint = await clr.calculateAmountsMintedSingleToken(0, amount0);
+        await expect(clr.connect(user1).deposit(mint.amount0Minted, mint.amount1Minted)).to.emit(clr, 'Deposit');
     }),
 
     it('should emit event on withdraw', async () => {
-        await expect(clr.withdraw(bnDecimal(1))).to.emit(clr, 'Withdraw');
+        await expect(clr.withdraw(bnDecimal(1), 0, 0)).to.emit(clr, 'Withdraw');
     }),
 
     it('should emit event on withdraw and claim rewards', async () => {
-        await expect(clr.withdrawAndClaimReward(bnDecimal(1))).to.emit(clr, 'Withdraw');
+        await expect(clr.withdrawAndClaimReward(bnDecimal(1), 0, 0)).to.emit(clr, 'Withdraw');
     })
   })
 })
