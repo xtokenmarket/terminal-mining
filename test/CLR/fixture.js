@@ -20,7 +20,7 @@ const deploymentFixture = deployments.createFixture(async () => {
     let token0 = await deployArgs('ERC20Basic', 'wETH', 'wETH');
     let token1 = await deployArgs('ERC20Basic', 'XTK', 'XTK');
     // Tokens must be sorted by address
-    if(token0.address > token1.address) {
+    if(token0.address.toLowerCase() > token1.address.toLowerCase()) {
       let tmp = token0;
       token0 = token1;
       token1 = tmp;
@@ -42,7 +42,7 @@ const deploymentFixture = deployments.createFixture(async () => {
   let token0 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
   let token1 = await deployArgs('ERC20Decimals', 'USDT', 'USDT', 6);
   // Tokens must be sorted by address
-  if(token0.address > token1.address) {
+  if(token0.address.toLowerCase() > token1.address.toLowerCase()) {
     let tmp = token0;
     token0 = token1;
     token1 = tmp;
@@ -64,7 +64,7 @@ const deploymentFixture = deployments.createFixture(async () => {
   let token0 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 8);
   let token1 = await deployArgs('ERC20Decimals', 'renBTC', 'renBTC', 8);
   // Tokens must be sorted by address
-  if(token0.address > token1.address) {
+  if(token0.address.toLowerCase() > token1.address.toLowerCase()) {
     let tmp = token0;
     token0 = token1;
     token1 = tmp;
@@ -86,16 +86,15 @@ const deploymentFixture = deployments.createFixture(async () => {
   let token0 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
   let token1 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 8);
   // Tokens must be sorted by address
-  if(token0.address > token1.address) {
-    let tmp = token0;
-    token0 = token1;
-    token1 = tmp;
+  // Make sure tokens are ordered correctly
+  while(token0.address.toLowerCase() > token1.address.toLowerCase()) {
+    token1 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 8);
   }
   // 0.91 - 1.07 price
   const lowTick = 45120;
   const highTick = 46740;
   // Price = 1
-  const price = '792123018063160355181610785112';
+  const price = '793312034679948183834879042901';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 });
 
@@ -108,16 +107,15 @@ const deploymentFixture = deployments.createFixture(async () => {
   let token0 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 8);
   let token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
   // Tokens must be sorted by address
-  if(token0.address > token1.address) {
-    let tmp = token0;
-    token0 = token1;
-    token1 = tmp;
+  // Make sure tokens are ordered correctly
+  while(token0.address.toLowerCase() > token1.address.toLowerCase()) {
+    token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
   }
   // 0.91 - 1.07 price
   const lowTick = -46980;
   const highTick = -45360;
   // Price = 1
-  const price = '7924402639800795030682818884';
+  const price = '7912525539738091750091588668';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 });
 
@@ -130,16 +128,15 @@ const fixture_6_12_decimals = deployments.createFixture(async () => {
   let token0 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
   let token1 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 12);
   // Tokens must be sorted by address
-  if(token0.address > token1.address) {
-    let tmp = token0;
-    token0 = token1;
-    token1 = tmp;
+  // Make sure tokens are ordered correctly
+  while(token0.address.toLowerCase() > token1.address.toLowerCase()) {
+    token1 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 12);
   }
   // 0.91 - 1.07 price
   const lowTick = 137220;
   const highTick = 138840;
   // Price = 1
-  const price = '79220188129070905394287418468253';
+  const price = '79299443975792720780679863727831';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 });
 
@@ -149,19 +146,18 @@ const fixture_6_12_decimals = deployments.createFixture(async () => {
  * Deploys LM Terminal, along with Uniswap and an Incentivized pool
  */
 const fixture_12_6_decimals = deployments.createFixture(async () => {
-  let token0 = await deployArgs('ERC20Decimals', 'Test1', 'Test1', 12);
+  let token0 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 12);
   let token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
   // Tokens must be sorted by address
-  if(token0.address > token1.address) {
-    let tmp = token0;
-    token0 = token1;
-    token1 = tmp;
+  // Make sure tokens are ordered correctly
+  while(token0.address.toLowerCase() > token1.address.toLowerCase()) {
+    token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
   }
   // 0.91 - 1.07 price
   const lowTick = -139080;
   const highTick = -137460;
   // Price = 1
-  const price = '79236137702167542579810491';
+  const price = '79156945126914824732836954';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 })
 
@@ -173,7 +169,7 @@ const fixture_12_6_decimals = deployments.createFixture(async () => {
   let token0 = await deployArgs('ERC20Basic', 'wETH', 'wETH');
   let token1 = await deployArgs('ERC20Basic', 'XTK', 'XTK');
   // Tokens must be sorted by address
-  if(token0.address > token1.address) {
+  if(token0.address.toLowerCase() > token1.address.toLowerCase()) {
     let tmp = token0;
     token0 = token1;
     token1 = tmp;
@@ -194,7 +190,7 @@ const fixture_outside_range_right = deployments.createFixture(async () => {
  let token0 = await deployArgs('ERC20Basic', 'wETH', 'wETH');
  let token1 = await deployArgs('ERC20Basic', 'XTK', 'XTK');
  // Tokens must be sorted by address
- if(token0.address > token1.address) {
+ if(token0.address.toLowerCase() > token1.address.toLowerCase()) {
    let tmp = token0;
    token0 = token1;
    token1 = tmp;
@@ -216,7 +212,7 @@ const fixture_no_cardinality = deployments.createFixture(async () => {
   let token0 = await deployArgs('ERC20Basic', 'wETH', 'wETH');
   let token1 = await deployArgs('ERC20Basic', 'XTK', 'XTK');
   // Tokens must be sorted by address
-  if(token0.address > token1.address) {
+  if(token0.address.toLowerCase() > token1.address.toLowerCase()) {
     let tmp = token0;
     token0 = token1;
     token1 = tmp;
@@ -281,10 +277,10 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
         positionManager: positionManager.address }, bnDecimal(1), 100, 1000);
 
   // transfer tokens to other users
-  await token0.transfer(user1.address, bnDecimals(1000000, token0Decimals));
-  await token1.transfer(user1.address, bnDecimals(1000000, token1Decimals));
-  await token0.transfer(user2.address, bnDecimals(1000000, token0Decimals));
-  await token1.transfer(user2.address, bnDecimals(1000000, token1Decimals));
+  await token0.transfer(user1.address, bnDecimals(1000000000, token0Decimals));
+  await token1.transfer(user1.address, bnDecimals(1000000000, token1Decimals));
+  await token0.transfer(user2.address, bnDecimals(1000000000, token0Decimals));
+  await token1.transfer(user2.address, bnDecimals(1000000000, token1Decimals));
 
   // approve terminal
   await token0.approve(lmTerminal.address, bnDecimal(1000000000));

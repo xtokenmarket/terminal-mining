@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 const { bnDecimal, getPriceInX96, increaseTime } = require('../../scripts/helpers');
 const { deploymentFixture } = require('../fixture');
 
-// Reward initialization tests
+// Deposit and withdraw tests
 describe('Contract: LMTerminal', async () => {
   let lmTerminal, token0, token1, rewardToken, rewardToken2, admin, user1, user2, user3;
   let rewardProgramDuration, clr, stakedToken;
@@ -43,7 +43,8 @@ describe('Contract: LMTerminal', async () => {
         it('should get receipt tokens on liquidity provision', async () => {
             let balanceBefore = await stakedToken.balanceOf(admin.address);
             let liquidityAmount = bnDecimal(10000);
-            await clr.deposit(0, liquidityAmount);
+            let amts = await clr.calculateAmountsMintedSingleToken(0, liquidityAmount);
+            await clr.deposit(amts.amount0Minted, amts.amount1Minted);
             let balanceAfter = await stakedToken.balanceOf(admin.address);
             expect(balanceAfter).to.be.gt(balanceBefore);
         }),
@@ -51,37 +52,40 @@ describe('Contract: LMTerminal', async () => {
         it('should burn receipt tokens on liquidity removal', async () => {
             // mint first to receive tokens
             let liquidityAmount = bnDecimal(10000);
-            await clr.connect(user1).deposit(0, liquidityAmount);
+            let amts = await clr.calculateAmountsMintedSingleToken(0, liquidityAmount);
+            await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
             // Address gets locked by blocklock, so mine a few blocks
             await increaseTime(300);
 
             // burn
             let balanceBefore = await stakedToken.balanceOf(user1.address);
-            await clr.connect(user1).withdraw(balanceBefore);
+            await clr.connect(user1).withdraw(balanceBefore, 0, 0);
             let balanceAfter = await stakedToken.balanceOf(user1.address);
             expect(balanceAfter).to.be.eq(0);
         }),
 
         it(`shouldn't be able to provide 0 liquidity`, async () => {
             let liquidityAmount = 0;
-            await expect(clr.deposit(0, liquidityAmount)).to.be.reverted;
+            await expect(clr.deposit(liquidityAmount, liquidityAmount)).to.be.reverted;
         }),
 
         it(`shouldn't be able to remove 0 liquidity`, async () => {
             // mint first to receive tokens
             let liquidityAmount = bnDecimal(10000);
-            await clr.deposit(0, liquidityAmount);
+            let amts = await clr.calculateAmountsMintedSingleToken(0, liquidityAmount);
+            await clr.deposit(amts.amount0Minted, amts.amount1Minted);
             // Address gets locked by blocklock, so mine a few blocks
             await increaseTime(300);
 
             liquidityAmount = 0;
-            await expect(clr.withdraw(liquidityAmount)).to.be.reverted;
+            await expect(clr.withdraw(liquidityAmount, 0, 0)).to.be.reverted;
         }),
 
         it('should be able to claim rewards', async () => {
             // mint first to receive tokens
             let liquidityAmount = bnDecimal(10000);
-            await clr.deposit(0, liquidityAmount);
+            let amts = await clr.calculateAmountsMintedSingleToken(0, liquidityAmount);
+            await clr.deposit(amts.amount0Minted, amts.amount1Minted);
             // Address gets locked by blocklock, so mine a few blocks
             await increaseTime(300);
             // Increase time to accumulate rewards
@@ -97,7 +101,8 @@ describe('Contract: LMTerminal', async () => {
         it('should be able to claim rewards and remove liquidity', async () => {
             // mint first to receive tokens
             let liquidityAmount = bnDecimal(10000);
-            await clr.connect(user1).deposit(0, liquidityAmount);
+            let amts = await clr.calculateAmountsMintedSingleToken(0, liquidityAmount);
+            await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
             // Address gets locked by blocklock, so mine a few blocks
             await increaseTime(300);
             // Increase time to accumulate rewards
@@ -107,7 +112,7 @@ describe('Contract: LMTerminal', async () => {
             let rewardBalanceBefore = await rewardToken.balanceOf(user1.address);
 
             // burn and claim
-            await clr.connect(user1).withdrawAndClaimReward(stakedBalanceBefore);
+            await clr.connect(user1).withdrawAndClaimReward(stakedBalanceBefore, 0, 0);
 
             let stakedBalanceAfter = await stakedToken.balanceOf(user1.address);
             let rewardBalanceAfter = await rewardToken.balanceOf(user1.address);

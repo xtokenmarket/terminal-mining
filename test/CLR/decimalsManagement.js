@@ -15,16 +15,18 @@ describe('Contract: CLR', async () => {
             await fixture_12_6_decimals());
         [admin, user1, user2, user3, user4, ...addrs] = await ethers.getSigners();
         const amount = bnDecimals(1000000, token0Decimals);
-        await clr.deposit(0, amount);
+        let amounts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
     })
 
     it('should be able to reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(0, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000000));
@@ -194,16 +196,18 @@ describe('Contract: CLR', async () => {
             await fixture_6_12_decimals());
         [admin, user1, user2, user3, user4, ...addrs] = await ethers.getSigners();
         const amount = bnDecimals(1000000, token0Decimals);
-        await clr.deposit(0, amount);
+        let amounts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
     })
 
     it('should be able to reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(0, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000000));
@@ -376,16 +380,18 @@ describe('Contract: CLR', async () => {
             await fixture_6_8_decimals());
         [admin, user1, user2, user3, user4, ...addrs] = await ethers.getSigners();
         const amount = bnDecimals(1000000, token0Decimals);
-        await clr.deposit(0, amount);
+        let amounts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
     })
 
     it('should be able to reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(1, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000000));
@@ -558,16 +564,18 @@ describe('Contract: CLR', async () => {
             await fixture_8_6_decimals());
         [admin, user1, user2, user3, user4, ...addrs] = await ethers.getSigners();
         const amount = bnDecimals(1000000, token0Decimals);
-        await clr.deposit(0, amount);
+        let amounts = await clr.calculateAmountsMintedSingleToken(0, amount);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
     })
 
     it('should be able to reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(1, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000000));
@@ -760,16 +768,18 @@ describe('Contract: CLR', async () => {
           await fixture_6_6_decimals());
       [admin, user1, user2, user3, user4, ...addrs] = await ethers.getSigners();
       const amount = bnDecimals(1000000, token0Decimals);
-      await clr.deposit(0, amount);
+      let amounts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
       await increaseTime(300);
     })
 
     it('should be able to reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(0, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000));
@@ -780,10 +790,11 @@ describe('Contract: CLR', async () => {
 
     it('should be able to collect and reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(0, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000));
@@ -937,16 +948,18 @@ describe('Contract: CLR', async () => {
           await fixture_8_8_decimals());
       [admin, user1, user2, user3, user4, ...addrs] = await ethers.getSigners();
       const amount = bnDecimals(1000000, token0Decimals);
-      await clr.deposit(0, amount);
+      let amounts = await clr.calculateAmountsMintedSingleToken(0, amount);
+      await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
       await increaseTime(300);
     })
 
     it('should be able to reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(0, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000));
@@ -957,10 +970,11 @@ describe('Contract: CLR', async () => {
 
     it('should be able to collect and reinvest', async () => {
         let mintAmount = bnDecimals(1000000, token0Decimals)
-        let mintAmount2 = bnDecimals(1000000, token1Decimals)
-        await clr.deposit(0, mintAmount);
+        let mintAmount1 = bnDecimals(1000000, token1Decimals)
+        let amounts = await clr.calculatePoolMintedAmounts(mintAmount, mintAmount1);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
-        await clr.deposit(0, mintAmount2);
+        await clr.deposit(amounts.amount0Minted, amounts.amount1Minted);
         await increaseTime(300);
         // Swap to collect some fees in buffer
         await swapToken0ForToken1Decimals(router, token0, token1, admin.address, bnDecimal(10000));

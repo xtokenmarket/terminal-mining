@@ -32,13 +32,17 @@ describe('Contract: CLR', async () => {
     }),
 
     it('should be able to get the NAV', async () => {
-      let nav = await clr.getNAV();
-      expect(nav).not.to.be.eq(0);
+        let nav = await clr.getNAV();
+        expect(nav).not.to.be.eq(0);
     }),
 
     it('should be able to get the TWAP', async () => {
-      let twap = await clr.getTWAP();
-      expect(twap).not.to.be.eq(0);
+        let twap = await clr.getTWAP();
+        expect(twap).not.to.be.eq(0);
+    }),
+
+    it('should be able to get the withdraw amounts for clr balance', async () => {
+        await expect(clr.calculateWithdrawAmounts(1000)).not.to.be.reverted;
     })
   })
 })

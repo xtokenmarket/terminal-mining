@@ -211,7 +211,8 @@ describe('Contract: LMTerminal', async () => {
             // approve clr
             await token0.approve(clr.address, bnDecimal(1000000));
             await token1.approve(clr.address, bnDecimal(1000000));
-            await clr.deposit(0, bnDecimal(100000));
+            let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimal(100000));
+            await clr.deposit(amts.amount0Minted, amts.amount1Minted);
             await increaseTime(300);
             await increaseTime(rewardProgramDuration / 5); // get through 1/5 of program
             
@@ -232,7 +233,8 @@ describe('Contract: LMTerminal', async () => {
             // approve clr
             await token0.approve(clrPoolAddress, bnDecimal(1000000));
             await token1.approve(clrPoolAddress, bnDecimal(1000000));
-            await clr.deposit(0, bnDecimal(100000));
+            let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimal(100000));
+            await clr.deposit(amts.amount0Minted, amts.amount1Minted);
             await increaseTime(rewardProgramDuration / 5); // get through 2/5 of program
             
             let balanceBefore = await rewardToken.balanceOf(rewardEscrow);
@@ -252,8 +254,10 @@ describe('Contract: LMTerminal', async () => {
             // approve clr
             await token0.approve(clrPoolAddress, bnDecimal(1000000));
             await token1.approve(clrPoolAddress, bnDecimal(1000000));
-            await clr.connect(user1).deposit(0, bnDecimal(100000));
-            await clr.deposit(0, bnDecimal(100000));
+            let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimal(100000));
+            await clr.connect(user1).deposit(amts.amount0Minted, amts.amount1Minted);
+            amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimal(100000));
+            await clr.deposit(amts.amount0Minted, amts.amount1Minted);
             await increaseTime(300);
             await increaseTime(rewardProgramDuration / 5); // get through 3/5 of program
             
