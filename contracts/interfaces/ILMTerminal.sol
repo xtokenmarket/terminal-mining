@@ -12,6 +12,8 @@ interface ILMTerminal {
 
     function customDeploymentFeeEnabled(address) external view returns (bool);
 
+    function isRebalanceEnabled(address) external view returns (bool);
+
     function deployIncentivizedPool(
         string memory symbol,
         PositionTicks memory ticks,
@@ -34,6 +36,10 @@ interface ILMTerminal {
 
     function enableCustomDeploymentFee(address deployer, uint256 feeAmount)
         external;
+
+    function enableRebalanceForPool(address pool) external;
+
+    function disableRebalanceForPool(address pool) external;
 
     function getPool(
         address token0,
