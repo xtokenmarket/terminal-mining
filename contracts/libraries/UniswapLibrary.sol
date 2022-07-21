@@ -76,14 +76,21 @@ library UniswapLibrary {
     /**
      * Get pool price in decimal notation with 12 decimals
      */
-    function getPoolPriceWithDecimals(address _pool)
-        public
-        view
-        returns (uint256 price)
-    {
+    function getPoolPriceWithDecimals(
+        address _pool,
+        uint8 token0Decimals,
+        uint8 token1Decimals
+    ) public view returns (uint256 price) {
         uint160 sqrtRatioX96 = getPoolPrice(_pool);
+        uint8 tokenDecimalDiff = token0Decimals >= token1Decimals
+            ? token0Decimals - token1Decimals
+            : token1Decimals - token0Decimals;
         return
-            uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(1e12) >> 192;
+            token0Decimals >= token1Decimals
+                ? (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(10**(12+tokenDecimalDiff)) >>
+                    192)
+                : (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(10**(12-tokenDecimalDiff)) >>
+                    192);
     }
 
     /**
@@ -196,7 +203,11 @@ library UniswapLibrary {
         PositionDetails memory positionDetails,
         TokenDetails memory tokenDetails
     ) public returns (uint256 _amountOut) {
-        uint256 midPrice = getPoolPriceWithDecimals(positionDetails.pool);
+        uint256 midPrice = getPoolPriceWithDecimals(
+            positionDetails.pool,
+            tokenDetails.token0Decimals,
+            tokenDetails.token1Decimals
+        );
         amountOut = amountOut.mul(midPrice).div(1e12);
         uint256 token0Balance = getBufferToken0Balance(
             IERC20(tokenDetails.token0),
@@ -259,7 +270,11 @@ library UniswapLibrary {
         PositionDetails memory positionDetails,
         TokenDetails memory tokenDetails
     ) public returns (uint256 _amountIn) {
-        uint256 midPrice = getPoolPriceWithDecimals(positionDetails.pool);
+        uint256 midPrice = getPoolPriceWithDecimals(
+            positionDetails.pool,
+            tokenDetails.token0Decimals,
+            tokenDetails.token1Decimals
+        );
         amountOut = amountOut.mul(1e12).div(midPrice);
         uint256 token1Balance = getBufferToken1Balance(
             IERC20(tokenDetails.token1),
@@ -573,7 +588,11 @@ library UniswapLibrary {
         uint256 swapAmount;
         bool swapDirection;
         {
-            uint256 midPrice = getPoolPriceWithDecimals(positionDetails.pool);
+            uint256 midPrice = getPoolPriceWithDecimals(
+                positionDetails.pool,
+                tokenDetails.token0Decimals,
+                tokenDetails.token1Decimals
+            );
             // Swap amount returned is always in asset 0 terms
             (swapAmount, swapDirection) = Utils.calculateSwapAmount(
                 Utils.AmountsMinted({
@@ -637,7 +656,11 @@ library UniswapLibrary {
             // amountOut is already in native decimals
             amount1 = amountsMinted.amount1ToMint.add(amountOut);
         } else {
-            uint256 midPrice = getPoolPriceWithDecimals(positionDetails.pool);
+            uint256 midPrice = getPoolPriceWithDecimals(
+                positionDetails.pool,
+                tokenDetails.token0Decimals,
+                tokenDetails.token1Decimals
+            );
             swapAmountWithSlippage = swapAmountWithSlippage.mul(midPrice).div(
                 1e12
             );
