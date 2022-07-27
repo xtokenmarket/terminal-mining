@@ -47,9 +47,9 @@ const deploymentFixture = deployments.createFixture(async () => {
     token0 = token1;
     token1 = tmp;
   }
-  // 0.91 - 1.07 price
-  const lowTick = 137220;
-  const highTick = 138840;
+  // 0.94 - 1.06 price
+  const lowTick = -600;
+  const highTick = 600;
   // Price = 1
   const price = '79228162514264337593543950336';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
@@ -69,9 +69,9 @@ const deploymentFixture = deployments.createFixture(async () => {
     token0 = token1;
     token1 = tmp;
   }
-  // 0.91 - 1.07 price
-  const lowTick = 137220;
-  const highTick = 138840;
+  // 0.94 - 1.06 price
+  const lowTick = -600;
+  const highTick = 600;
   // Price = 1
   const price = '79228162514264337593543950336';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
@@ -158,6 +158,48 @@ const fixture_12_6_decimals = deployments.createFixture(async () => {
   const highTick = -137460;
   // Price = 1
   const price = '79156945126914824732836954';
+  return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
+})
+
+/**
+ * Fixture for tokens with different decimals
+ * Token 0 decimals = 6 ; Token 1 Decimals = 18
+ * Deploys LM Terminal, along with Uniswap and an Incentivized pool
+ */
+const fixture_6_18_decimals = deployments.createFixture(async () => {
+  let token0 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 6);
+  let token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 18);
+  // Tokens must be sorted by address
+  // Make sure tokens are ordered correctly
+  while(token0.address.toLowerCase() > token1.address.toLowerCase()) {
+    token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 18);
+  }
+  // 300 - 25 000 price
+  const lowTick = 333360
+  const highTick = 377580
+  // Price = 1400
+  const price = '2965940236826234467985251982472555553';
+  return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
+})
+
+/**
+ * Fixture for tokens with different decimals
+ * Token 0 decimals = 18 ; Token 1 Decimals = 6
+ * Deploys LM Terminal, along with Uniswap and an Incentivized pool
+ */
+const fixture_18_6_decimals = deployments.createFixture(async () => {
+  let token0 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 18);
+  let token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
+  // Tokens must be sorted by address
+  // Make sure tokens are ordered correctly
+  while(token0.address.toLowerCase() > token1.address.toLowerCase()) {
+    token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
+  }
+  // 300 - 25 000 price
+  const lowTick = -219300
+  const highTick = -175080
+  // Price = 11 100
+  const price = '8344019221856898877545009';
   return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
 })
 
@@ -336,5 +378,6 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
 }
 
 module.exports = { deploymentFixture, fixture_6_6_decimals, fixture_8_8_decimals, fixture_6_8_decimals, 
-                  fixture_8_6_decimals, fixture_6_12_decimals, fixture_12_6_decimals, fixture_no_cardinality,
-                  fixture_outside_range_left, fixture_outside_range_right };
+                  fixture_8_6_decimals, fixture_6_12_decimals, fixture_12_6_decimals, 
+                  fixture_18_6_decimals, fixture_6_18_decimals,
+                  fixture_no_cardinality, fixture_outside_range_left, fixture_outside_range_right };
