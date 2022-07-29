@@ -162,6 +162,48 @@ const fixture_12_6_decimals = deployments.createFixture(async () => {
 })
 
 /**
+ * Fixture for tokens with different decimals
+ * Token 0 decimals = 6 ; Token 1 Decimals = 18
+ * Deploys LM Terminal, along with Uniswap and an Incentivized pool
+ */
+const fixture_6_18_decimals = deployments.createFixture(async () => {
+  let token0 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 6);
+  let token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 18);
+  // Tokens must be sorted by address
+  // Make sure tokens are ordered correctly
+  while(token0.address.toLowerCase() > token1.address.toLowerCase()) {
+    token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 18);
+  }
+  // 300 - 25 000 price
+  const lowTick = 333360
+  const highTick = 377580
+  // Price = 1400
+  const price = '2965940236826234467985251982472555553';
+  return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
+})
+
+/**
+ * Fixture for tokens with different decimals
+ * Token 0 decimals = 18 ; Token 1 Decimals = 6
+ * Deploys LM Terminal, along with Uniswap and an Incentivized pool
+ */
+const fixture_18_6_decimals = deployments.createFixture(async () => {
+  let token0 = await deployArgs('ERC20Decimals', 'wBTC', 'wBTC', 18);
+  let token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
+  // Tokens must be sorted by address
+  // Make sure tokens are ordered correctly
+  while(token0.address.toLowerCase() > token1.address.toLowerCase()) {
+    token1 = await deployArgs('ERC20Decimals', 'USDC', 'USDC', 6);
+  }
+  // 300 - 25 000 price
+  const lowTick = -219300
+  const highTick = -175080
+  // Price = 11 100
+  const price = '8344019221856898877545009';
+  return await setupDeploymentAndInitializePool(token0, token1, lowTick, highTick, price, true);
+})
+
+/**
  * Deployment fixture with liquidity only in the first token
  * Deploys LM Terminal, along with Uniswap pool and an Incentivized pool
  */
@@ -335,5 +377,6 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
 }
 
 module.exports = { deploymentFixture, fixture_6_6_decimals, fixture_8_8_decimals, fixture_6_8_decimals, 
-                  fixture_8_6_decimals, fixture_6_12_decimals, fixture_12_6_decimals, fixture_no_cardinality,
-                  fixture_outside_range_left, fixture_outside_range_right };
+                  fixture_8_6_decimals, fixture_6_12_decimals, fixture_12_6_decimals, 
+                  fixture_18_6_decimals, fixture_6_18_decimals,
+                  fixture_no_cardinality, fixture_outside_range_left, fixture_outside_range_right };
