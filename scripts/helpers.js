@@ -265,7 +265,7 @@ async function getSwapAmountWhenMinting(CLR, uniswapLibrary, amount0, amount1) {
  * @param {Boolean} oneInch route through 1inch if true, Uni V3 if not 
  */
 async function swapAndStake(CLR, uniswapLibrary, token0, token1, oneInch) {
-    let buffer = await getBufferBalance(CLR);
+    let buffer = await getBufferBalance(CLR, token0, token1);
     let [swapAmt, side] = await getSwapAmountWhenMinting(CLR, uniswapLibrary, buffer[0], buffer[1]);
     if(side) {
         console.log('swappping', gnnd(swapAmt).toString(), 'of token 0 for token 1');
@@ -509,6 +509,40 @@ async function getMidPrice(uniswapLibrary, poolAddress) {
 }
 
 /**
+ * Calculate amount to swap when rebalancing
+ * @param {Contract} CLR CLR instance
+ * @param {Contract} uniswapLibrary Uniswap Library instance
+ * @param {BigNumber} amount0 token 0 amount for staking
+ * @param {BigNumber} amount1 token 1 amount for staking
+ * @returns [BigNumber, bool] swapAmount and swap 0 -> 1 if true, 1 -> 0 if false
+ */
+ async function getSwapAmountWhenMinting(CLR, uniswapLibrary, amount0, amount1) {
+    let minted = await getMintedAmounts(CLR, amount0, amount1);
+    let poolAddress = (await CLR.uniContracts()).pool;
+    let liquidity = await CLR.getLiquidityForAmounts(minted[0], minted[1]);
+    let poolLiquidity = await uniswapLibrary.getPoolLiquidity(poolAddress);
+    let liquidityRatio = liquidity.mul(bn(10).pow(18)).div(poolLiquidity);
+    let midPrice = (await uniswapLibrary.getPoolPriceWithDecimals(poolAddress));
+
+    // n - swap amt, x - amount 0 to mint, y - amount 1 to mint,
+    // z - amount 0 minted, t - amount 1 minted, p0 - pool mid price
+    // l - liquidity ratio (current mint liquidity vs total pool liq)
+    // (X - n) / (Y + n * p0) = (Z + l * n) / (T - l * n * p0) ->
+    // n = (X * T - Y * Z) / (p0 * l * X + p0 * Z + l * Y + T)
+    let numerator = amount0.mul(minted[1]).sub(amount1.mul(minted[0]));
+    let denominator = amount0.mul(liquidityRatio).mul(midPrice).div(bn(10).pow(18)).div(1e12).
+                        add(midPrice.mul(minted[0]).div(1e12)).
+                        add(liquidityRatio.mul(amount1).div(bn(10).pow(18))).
+                        add(minted[1]);
+    let result = numerator.div(denominator);
+    if(numerator.gt(0)) {
+        return [result, true];
+    } else {
+        return [result, false];
+    }
+}
+
+/**
  * Get upper and lower price bounds for xAAVEa
  * upper price bound = mid price * 104%
  * Used for AAVE-xAAVEa CLR instance
@@ -544,14 +578,62 @@ async function printMidPrice(uniswapLibrary, poolAddress) {
 /**
  * Stake buffer token amounts from CLR
  * @param {Contract} CLR 
- * @param {BigNumber} amount0 
- * @param {BigNumber} amount1 
  */
  async function stakeBuffer(CLR) {
-    let buffer = await CLR.getBufferTokenBalance();
-    let amounts = await getMintedAmounts(CLR, buffer.amount0, buffer.amount1);
+    let token0Address = await CLR.token0();
+    let token1Address = await CLR.token1();
+    let token0 = await ethers.getContractAt('ERC20Basic', token0Address);
+    let token1 = await ethers.getContractAt('ERC20Basic', token1Address);
+    let t0Balance = await token0.balanceOf(CLR.address)
+    let t1Balance = await token1.balanceOf(CLR.address)
+    let amounts = await getMintedAmounts(CLR, t0Balance, t1Balance);
     await CLR.adminStake(amounts[0], amounts[1]);
 }
+
+/**
+ * Get buffer token balances in CLR in native decimals
+ * @param {*} CLRAddress address of CLR
+ * @param {*} token0 token 0 contract
+ * @param {*} token1 token 1 contract
+ * @returns 
+ */
+async function getBufferBalance(CLRAddress, token0, token1) {
+    let t0Balance = await token0.balanceOf(CLRAddress)
+    let t1Balance = await token1.balanceOf(CLRAddress)
+    return {
+        amount0: t0Balance,
+        amount1: t1Balance
+    }
+}
+
+/**
+ * Get buffer token balances in CLR in wei
+ * @param {*} CLRAddress address of CLR
+ * @param {*} token0 token 0 contract
+ * @param {*} token1 token 1 contract
+ * @returns 
+ */
+async function getBufferBalanceInWei(CLRAddress, token0, token1) {
+    let t0Balance = await token0.balanceOf(CLRAddress)
+    let t1Balance = await token1.balanceOf(CLRAddress)
+    let t0Decimals = await token0.decimals();
+    let t1Decimals = await token1.decimals();
+    
+    let t0DecimalMultiplier = bn(10).pow(18 - t0Decimals);
+    let t1DecimalMultiplier = bn(10).pow(18 - t1Decimals);
+
+    if(t0Decimals < 18) {
+        t0Balance = t0Balance.mul(t0DecimalMultiplier);
+    }
+    if(t1Decimals < 18) {
+        t1Balance = t1Balance.mul(t1DecimalMultiplier);
+    }
+    
+    return {
+        amount0: t0Balance,
+        amount1: t1Balance
+    }
+} 
 
 
 /**
@@ -598,22 +680,15 @@ async function getPositionBalance(CLR) {
 }
 
 /**
- * Get buffer balance
- * @param CLR CLR contract
- * @returns 
- */
- async function getBufferBalance(CLR) {
-    let tokenBalance = await CLR.getBufferTokenBalance();
-    return [(tokenBalance.amount0),
-            (tokenBalance.amount1)];
-}
-
-/**
  * Print the current pool position and CLR (buffer) token balances
  * @param CLR CLR contract
  */
 async function printPositionAndBufferBalance(CLR) {
-    let bufferBalance = await getBufferBalance(CLR);
+    let token0Address = await CLR.token0();
+    let token1Address = await CLR.token1();
+    let token0 = await ethers.getContractAt('ERC20Basic', token0Address);
+    let token1 = await ethers.getContractAt('ERC20Basic', token1Address);
+    let bufferBalance = await getBufferBalance(CLR.address, token0, token1);
     let positionBalance = await getPositionBalance(CLR);
     console.log('CLR balance:\n' + 'token0:', getNumberNoDecimals(bufferBalance[0]), 'token1:', getNumberNoDecimals(bufferBalance[1]));
     console.log('position balance:\n' + 'token0:', positionBalance[0], 'token1:', positionBalance[1]);
@@ -624,7 +699,11 @@ async function printPositionAndBufferBalance(CLR) {
  * @param CLR CLR contract
  */
 async function getRatio(CLR) {
-    let bufferBalance = await CLR.getBufferBalance();
+    let token0Address = await CLR.token0();
+    let token1Address = await CLR.token1();
+    let token0 = await ethers.getContractAt('ERC20Basic', token0Address);
+    let token1 = await ethers.getContractAt('ERC20Basic', token1Address);
+    let bufferBalance = await CLR.getBufferBalance(CLR.address, token0, token1);
     let poolBalance = await CLR.getStakedBalance();
     console.log('buffer balance:', getNumberNoDecimals(bufferBalance));
     console.log('position balance:', getNumberNoDecimals(poolBalance));
@@ -640,7 +719,11 @@ async function getRatio(CLR) {
  * @param CLR CLR contract
  */
  async function getBufferPositionRatio(CLR) {
-    let bufferBalance = await CLR.getBufferBalance();
+    let token0Address = await CLR.token0();
+    let token1Address = await CLR.token1();
+    let token0 = await ethers.getContractAt('ERC20Basic', token0Address);
+    let token1 = await ethers.getContractAt('ERC20Basic', token1Address);
+    let bufferBalance = await CLR.getBufferBalance(CLR.address, token0, token1);
     let poolBalance = await CLR.getStakedBalance();
 
     let contractPoolTokenRatio = (getNumberNoDecimals(bufferBalance) + getNumberNoDecimals(poolBalance)) / 
@@ -989,7 +1072,7 @@ function gnn8d(amount) {
 module.exports = {
     deploy, deployArgs, deployWithAbi, deployAndLink, getTWAP,
     getRatio, getTokenPrices, getMinPrice, getMaxPrice, getMinTick, getMaxTick,
-    getTokenBalance, getPositionBalance, getBufferBalance, printPositionAndBufferBalance,
+    getTokenBalance, getPositionBalance, printPositionAndBufferBalance,
     bn, bnDecimal, bnDecimals, getNumberNoDecimals, getNumberDivDecimals, 
     getBlockTimestamp, swapToken0ForToken1, swapToken1ForToken0, getPriceInX96,
     swapToken0ForToken1Decimals, swapToken1ForToken0Decimals, getPoolPriceInNumberFormat,
@@ -997,9 +1080,9 @@ module.exports = {
     getSingleTokenMintedAmounts, testMintAndBurnAmounts, gnnd, gnn8d, getPoolMidPrice,
     getTWAPDecimals, getSwapAmountWhenMinting, checkClaimableFees, getMidPrice, printMidPrice,
     getPositionTokenRatio, printPositionTokenRatios, getPriceBounds,
-    stakeBuffer, getBalance, setAutomine, getLastBlock, 
+    stakeBuffer, getBalance, setAutomine, getLastBlock, getBufferBalance,
     getLastBlockTimestamp, decreaseTime, deployTokenManagerTest,
-    getMinTick, getMaxTick,
+    getMinTick, getMaxTick, getBufferBalanceInWei,
     // mainnet fork functions
     deployTokenManager, getMainnetxTokenManager, impersonate,
     swapToken0ForToken1Mainnet, swapToken1ForToken0Mainnet,

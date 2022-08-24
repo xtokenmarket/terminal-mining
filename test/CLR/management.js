@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { expect } = require('chai');
-const { bnDecimal, increaseTime, bnDecimals, deployArgs, swapToken0ForToken1, swapToken1ForToken0, decreaseTime } = require('../../scripts/helpers');
+const { bnDecimal, increaseTime, bnDecimals, deployArgs, swapToken0ForToken1, swapToken1ForToken0, decreaseTime, stakeBuffer, getBufferBalanceInWei, swapAndStake } = require('../../scripts/helpers');
 const { deploymentFixture } = require('./fixture');
 
 // Management functions tests for CLR
@@ -80,12 +80,12 @@ describe('Contract: CLR', async () => {
       await swapToken0ForToken1(router, token0, token1, admin.address, bnDecimal(10000));
       await swapToken1ForToken0(router, token0, token1, admin.address, bnDecimal(10000));
       await clr.collect();
-      let bufferBalanceBefore = await clr.getBufferTokenBalance();
+      let bufferBalanceBefore = await getBufferBalanceInWei(clr.address, token0, token1);
       let stakedBalanceBefore = await clr.getStakedTokenBalance();
 
-      await clr.adminStake(bufferBalanceBefore.amount0, bufferBalanceBefore.amount1);
+      await stakeBuffer(clr);
 
-      let bufferBalanceAfter = await clr.getBufferTokenBalance();
+      let bufferBalanceAfter = await getBufferBalanceInWei(clr.address, token0, token1);
       let stakedBalanceAfter = await clr.getStakedTokenBalance();
 
       expect(bufferBalanceBefore.amount0).to.be.gt(bufferBalanceAfter.amount0);
@@ -104,7 +104,7 @@ describe('Contract: CLR', async () => {
 
         let newLowerTick = -1200;
         let newUpperTick = 1200;
-        await clr.rebalance(newLowerTick, newUpperTick, 0, 0);
+        await clr.rebalance(newLowerTick, newUpperTick, 0, 0, "0x");
 
         ticks = await clr.getTicks();
         let newTokenId = await clr.tokenId();
@@ -126,7 +126,7 @@ describe('Contract: CLR', async () => {
       // new price range: 0.94 - 0.99
       let newLowerTick = -600;
       let newUpperTick = -120;
-      await clr.rebalance(newLowerTick, newUpperTick, 0, 0);
+      await clr.rebalance(newLowerTick, newUpperTick, 0, 0, "0x");
 
       ticks = await clr.getTicks();
       let newTokenId = await clr.tokenId();
@@ -151,7 +151,7 @@ describe('Contract: CLR', async () => {
       // new price range: 1.01 - 1.06
       let newLowerTick = 120;
       let newUpperTick = 600;
-      await clr.rebalance(newLowerTick, newUpperTick, 0, 0);
+      await clr.rebalance(newLowerTick, newUpperTick, 0, 0, "0x");
 
       ticks = await clr.getTicks();
       let newTokenId = await clr.tokenId();
@@ -175,7 +175,7 @@ describe('Contract: CLR', async () => {
       // new price range: 0.99 - 1.01
       let newLowerTick = -120;
       let newUpperTick = 120;
-      await clr.rebalance(newLowerTick, newUpperTick, 0, 0);
+      await clr.rebalance(newLowerTick, newUpperTick, 0, 0, "0x");
 
       ticks = await clr.getTicks();
       let newTokenId = await clr.tokenId();
@@ -189,16 +189,16 @@ describe('Contract: CLR', async () => {
     it('should be able to rebalance twice if more than 24 hours have passed', async () => {
         await lmTerminal.enableRebalanceForPool(clr.address);
 
-        await clr.rebalance(-1200, 1200, 0, 0);
+        await clr.rebalance(-1200, 1200, 0, 0, "0x");
 
         await increaseTime(86400);
 
-        await clr.rebalance(-6000, 6000, 0, 0);
+        await clr.rebalance(-6000, 6000, 0, 0, "0x");
     })
 
     it('shouldn\'t be able to rebalance to same price range', async () => {
         let ticks = await clr.getTicks();
-        await expect(clr.rebalance(ticks.tick0, ticks.tick1, 0, 0)).to.be.revertedWith('Need to change ticks');
+        await expect(clr.rebalance(ticks.tick0, ticks.tick1, 0, 0, "0x")).to.be.revertedWith('Need to change ticks');
     }),
 
     it('shouldn\'t be able to rebalance if pool isn\'t whitelisted in terminal', async () => {
@@ -208,7 +208,7 @@ describe('Contract: CLR', async () => {
 
         let newLowerTick = -1200;
         let newUpperTick = 1200;
-        await expect(clr.rebalance(newLowerTick, newUpperTick, 0, 0)).
+        await expect(clr.rebalance(newLowerTick, newUpperTick, 0, 0, "0x")).
           to.be.revertedWith('Rebalance is not enabled for this pool');
     }),
 
@@ -216,18 +216,18 @@ describe('Contract: CLR', async () => {
         await lmTerminal.enableRebalanceForPool(clr.address);
         let stakedBalance = await clr.getStakedTokenBalance();
 
-        await expect(clr.rebalance(-1200, 1200, stakedBalance.amount0, stakedBalance.amount1)).
+        await expect(clr.rebalance(-1200, 1200, stakedBalance.amount0, stakedBalance.amount1, "0x")).
           to.be.revertedWith('Staked token amounts after rebalance are not enough')
     }),
 
     it('shouldn\'t be able to rebalance twice in less than 24 hours', async () => {
         await lmTerminal.enableRebalanceForPool(clr.address);
 
-        await clr.rebalance(-1200, 1200, 0, 0);
+        await clr.rebalance(-1200, 1200, 0, 0, "0x");
 
         await increaseTime(86300);
 
-        await expect(clr.rebalance(-6000, 6000, 0, 0)).
+        await expect(clr.rebalance(-6000, 6000, 0, 0, "0x")).
           to.be.revertedWith('Can only rebalance once per 24 hours')
     })
 
@@ -236,13 +236,13 @@ describe('Contract: CLR', async () => {
       await swapToken0ForToken1(router, token0, token1, admin.address, bnDecimal(10000));
       await swapToken1ForToken0(router, token0, token1, admin.address, bnDecimal(10000));
       await clr.collect();
-      let balanceBefore = await clr.getBufferTokenBalance();
+      let balanceBefore = await getBufferBalanceInWei(clr.address, token0, token1);
 
       // true - swap token 0 for token 1
       let swapAmount = balanceBefore.amount0.div(2);
       await clr.adminSwap(swapAmount, true);
 
-      let balanceAfter = await clr.getBufferTokenBalance();
+      let balanceAfter = await getBufferBalanceInWei(clr.address, token0, token1);
 
       expect(balanceAfter.amount0).to.be.lt(balanceBefore.amount0);
       expect(balanceAfter.amount1).to.be.gt(balanceBefore.amount1);
@@ -253,13 +253,13 @@ describe('Contract: CLR', async () => {
       await swapToken0ForToken1(router, token0, token1, admin.address, bnDecimal(10000));
       await swapToken1ForToken0(router, token0, token1, admin.address, bnDecimal(10000));
       await clr.collect();
-      let balanceBefore = await clr.getBufferTokenBalance();
+      let balanceBefore = await getBufferBalanceInWei(clr.address, token0, token1);
 
       // false - swap token 1 for token 0
       let swapAmount = balanceBefore.amount1.div(2);
       await clr.adminSwap(swapAmount, false);
 
-      let balanceAfter = await clr.getBufferTokenBalance();
+      let balanceAfter = await getBufferBalanceInWei(clr.address, token0, token1);
 
       expect(balanceAfter.amount0).to.be.gt(balanceBefore.amount0);
       expect(balanceAfter.amount1).to.be.lt(balanceBefore.amount1);
@@ -267,7 +267,7 @@ describe('Contract: CLR', async () => {
 
     it(`shouldn\'t be able to swap token 0 for token 1 in clr 
         if there\'s not enough token 0 balance`, async () => {
-        let balance = await clr.getBufferTokenBalance();
+        let balance = await getBufferBalanceInWei(clr.address, token0, token1);
         let swapAmount = bnDecimal(10000);
 
         expect(balance.amount0).to.be.lt(swapAmount);
@@ -277,7 +277,7 @@ describe('Contract: CLR', async () => {
 
     it(`shouldn\'t be able to swap token 1 for token 0 in clr 
         if there\'s not enough token 1 balance`, async () => {
-          let balance = await clr.getBufferTokenBalance();
+          let balance = await getBufferBalanceInWei(clr.address, token0, token1);
           let swapAmount = bnDecimal(10000);
 
           expect(balance.amount1).to.be.lt(swapAmount);

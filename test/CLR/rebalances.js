@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { expect } = require('chai');
-const { increaseTime, bnDecimals, swapToken0ForToken1, swapToken1ForToken0, bnDecimal } = require('../../scripts/helpers');
+const { increaseTime, bnDecimals, swapToken0ForToken1, swapToken1ForToken0, bnDecimal, getBufferBalanceInWei } = require('../../scripts/helpers');
 const { deploymentFixture } = require('./fixture');
 
 // Management functions tests for CLR
@@ -31,10 +31,10 @@ describe('Contract: CLR', async () => {
         await swapToken0ForToken1(router, token0, token1, admin.address, bnDecimal(100000));
         await swapToken1ForToken0(router, token0, token1, admin.address, bnDecimal(100000));
         await clr.collect();
-        let buffer = await clr.getBufferTokenBalance();
+        let buffer = await getBufferBalanceInWei(clr.address, token0, token1);
         await clr.adminSwap(buffer.amount0.div(2), true);
 
-        buffer = await clr.getBufferTokenBalance();
+        buffer = await getBufferBalanceInWei(clr.address, token0, token1);
         expect(buffer.amount0).to.be.lt(buffer.amount1);
         
         await expect(clr.reinvest()).not.to.be.reverted;
@@ -51,10 +51,10 @@ describe('Contract: CLR', async () => {
         await swapToken0ForToken1(router, token0, token1, admin.address, bnDecimal(100000));
         await swapToken1ForToken0(router, token0, token1, admin.address, bnDecimal(100000));
         await clr.collect();
-        let buffer = await clr.getBufferTokenBalance();
+        let buffer = await getBufferBalanceInWei(clr.address, token0, token1);
         await clr.adminSwap(buffer.amount1.div(2), false);
 
-        buffer = await clr.getBufferTokenBalance();
+        buffer = await getBufferBalanceInWei(clr.address, token0, token1);
         expect(buffer.amount1).to.be.lt(buffer.amount0);
 
         await expect(clr.reinvest()).not.to.be.reverted;

@@ -173,9 +173,7 @@ contract CLR is
         ) = calculatePoolMintedAmounts(amount0, amount1);
         require(
             amount0Minted >= amount0.mul(99).div(100) &&
-                amount0Minted <= amount0 &&
-                amount1Minted >= amount1.mul(99).div(100) &&
-                amount1Minted <= amount1,
+                amount1Minted >= amount1.mul(99).div(100),
             "Price slippage check"
         );
         (amount0, amount1) = (amount0Minted, amount1Minted);
@@ -258,69 +256,12 @@ contract CLR is
     }
 
     /**
-     * @notice Get token balances in CLR contract
-     * @dev returned balances are represented with 18 decimals
-     */
-    function getBufferTokenBalance()
-        public
-        view
-        returns (uint256 amount0, uint256 amount1)
-    {
-        return (getBufferToken0Balance(), getBufferToken1Balance());
-    }
-
-    /**
-     * @notice Get token0 balance in CLR
-     * @dev returned balance is represented with 18 decimals
-     * @dev subtract reward amount from balance if it matches token 0
-     */
-    function getBufferToken0Balance() public view returns (uint256 amount0) {
-        amount0 = getToken0AmountInWei(
-            UniswapLibrary.subZero(
-                token0.balanceOf(address(this)),
-                rewardInfo[address(token0)].remainingRewardAmount
-            )
-        );
-    }
-
-    /**
-     * @notice Get token1 balance in CLR
-     * @dev returned balance is represented with 18 decimals
-     * @dev subtract reward amount from balance if it matches token 1
-     */
-    function getBufferToken1Balance() public view returns (uint256 amount1) {
-        amount1 = getToken1AmountInWei(
-            UniswapLibrary.subZero(
-                token1.balanceOf(address(this)),
-                rewardInfo[address(token1)].remainingRewardAmount
-            )
-        );
-    }
-
-    /**
      * @dev Get net asset value of CLR contract
      * @dev Uses Uniswap V3 twap and converts values to t1 terms
      * @dev The value returned is with 18 decimals
      */
     function getNAV() public view returns (uint256 nav) {
         return UniswapLibrary.getNav();
-    }
-
-    /**
-     * @dev Get Uni V3 Pool TWAP
-     * @dev The twap is a 64.64-bit fixed point number
-     */
-    function getTWAP() public view returns (int128 twap) {
-        uint256 tokenDiffDecimalMultiplier = 10 **
-            ((UniswapLibrary.subAbs(token0Decimals, token1Decimals)));
-        return
-            UniswapLibrary.getAsset0Price(
-                uniswapPool,
-                twapPeriod,
-                token0Decimals,
-                token1Decimals,
-                tokenDiffDecimalMultiplier
-            );
     }
 
     /**
@@ -468,12 +409,18 @@ contract CLR is
     /**
      * @dev Rebalance the current position to a new position with different ticks
      * @dev Possible only if the pool is whitelisted in Terminal
+     * @param newTickLower new lower tick of the position
+     * @param newTickUpper new upper tick of the position
+     * @param minAmount0Staked minimum t0 amount staked in position after rebalance
+     * @param minAmount1Staked minimum t1 amount staked in position after rebalance
+     * @param oneInchData one inch calldata for swapping tokens after rebalance
      */
     function rebalance(
         int24 newTickLower,
         int24 newTickUpper,
         uint256 minAmount0Staked,
-        uint256 minAmount1Staked
+        uint256 minAmount1Staked,
+        bytes memory oneInchData
     ) public onlyOwnerOrManager {
         require(
             newTickLower != tickLower || newTickUpper != tickUpper,
@@ -510,6 +457,15 @@ contract CLR is
         // set new NFT token id
         tokenId = createPosition(amount0, amount1);
 
+        // swap using 1inch and stake all tokens in position after rebalance
+        if (oneInchData.length != 0) {
+            UniswapLibrary.oneInchSwap(oneInchData);
+            adminStake(
+                token0.balanceOf(address(this)),
+                token1.balanceOf(address(this))
+            );
+        }
+
         // Check if balances are enough
         (
             uint256 stakedToken0Balance,
@@ -534,7 +490,7 @@ contract CLR is
      * @notice Admin function for staking in position
      */
     function adminStake(uint256 amount0, uint256 amount1)
-        external
+        public
         onlyOwnerOrManager
     {
         (
@@ -559,6 +515,14 @@ contract CLR is
         } else {
             swapToken1ForToken0(amount.add(amount.div(SWAP_SLIPPAGE)), amount);
         }
+    }
+
+    /**
+     * @dev Approve 1inch contract for swapping tokens
+     * @dev 1inch is used in rebalance function
+     */
+    function approveOneInch() external onlyOwnerOrManager {
+        UniswapLibrary.approveOneInch(token0, token1);
     }
 
     /**
@@ -929,38 +893,6 @@ contract CLR is
      */
     function getTicks() external view returns (int24 tick0, int24 tick1) {
         return (tickLower, tickUpper);
-    }
-
-    /**
-     * Returns token0 amount in TOKEN_DECIMAL_REPRESENTATION
-     */
-    function getToken0AmountInWei(uint256 amount)
-        private
-        view
-        returns (uint256)
-    {
-        return
-            UniswapLibrary.getToken0AmountInWei(
-                amount,
-                token0Decimals,
-                token0DecimalMultiplier
-            );
-    }
-
-    /**
-     * Returns token1 amount in TOKEN_DECIMAL_REPRESENTATION
-     */
-    function getToken1AmountInWei(uint256 amount)
-        private
-        view
-        returns (uint256)
-    {
-        return
-            UniswapLibrary.getToken1AmountInWei(
-                amount,
-                token1Decimals,
-                token1DecimalMultiplier
-            );
     }
 
     /**

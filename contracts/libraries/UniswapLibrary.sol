@@ -31,6 +31,10 @@ library UniswapLibrary {
     uint256 private constant SWAP_SLIPPAGE = 50; // 2%
     uint256 private constant MINT_BURN_SLIPPAGE = 100; // 1%
 
+    // 1inch v4 exchange address
+    address private constant oneInchExchange =
+        0x1111111254fb6c44bAC0beD2854e76F90643097d;
+
     struct TokenDetails {
         address token0;
         address token1;
@@ -89,10 +93,12 @@ library UniswapLibrary {
             : token1Decimals - token0Decimals;
         return
             token0Decimals >= token1Decimals
-                ? (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(10**(12+tokenDecimalDiff)) >>
-                    192)
-                : (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(10**(12-tokenDecimalDiff)) >>
-                    192);
+                ? (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(
+                    10**(12 + tokenDecimalDiff)
+                ) >> 192)
+                : (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(
+                    10**(12 - tokenDecimalDiff)
+                ) >> 192);
     }
 
     /**
@@ -471,6 +477,28 @@ library UniswapLibrary {
             })
         );
         return amountIn;
+    }
+
+    /* ========================================================================================= */
+    /*                               1inch Swap Helper functions                                 */
+    /* ========================================================================================= */
+
+    /**
+     * @dev Swap tokens in CLR (mining pool) using 1inch v4 exchange
+     * @param _oneInchData - One inch calldata, generated off-chain from their v4 api for the swap
+     */
+    function oneInchSwap(bytes memory _oneInchData) public {
+        (bool success, ) = oneInchExchange.call(_oneInchData);
+
+        require(success, "One inch swap call failed");
+    }
+
+    /**
+     * Approve 1inch v4 for swaps
+     */
+    function approveOneInch(IERC20 token0, IERC20 token1) public {
+        token0.safeApprove(oneInchExchange, type(uint256).max);
+        token1.safeApprove(oneInchExchange, type(uint256).max);
     }
 
     /* ========================================================================================= */
@@ -950,11 +978,29 @@ library UniswapLibrary {
      */
     function getBufferBalance() public view returns (uint256) {
         ICLR clrPool = ICLR(address(this));
-        (uint256 balance0, uint256 balance1) = clrPool.getBufferTokenBalance();
+
         uint8 token0Decimals = clrPool.token0Decimals();
         uint8 token1Decimals = clrPool.token1Decimals();
+        uint256 token0DecimalMultiplier = clrPool.token0DecimalMultiplier();
+        uint256 token1DecimalMultiplier = clrPool.token1DecimalMultiplier();
         uint256 tokenDiffDecimalMultiplier = 10 **
             ((subAbs(token0Decimals, token1Decimals)));
+
+        IERC20 token0 = IERC20(clrPool.token0());
+        IERC20 token1 = IERC20(clrPool.token1());
+        uint256 balance0 = token0.balanceOf(address(this));
+        uint256 balance1 = token1.balanceOf(address(this));
+
+        balance0 = getToken0AmountInWei(
+            balance0,
+            token0Decimals,
+            token0DecimalMultiplier
+        );
+        balance1 = getToken0AmountInWei(
+            balance1,
+            token1Decimals,
+            token1DecimalMultiplier
+        );
         return
             getAmountInAsset1Terms(
                 balance0,
