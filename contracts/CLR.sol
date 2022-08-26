@@ -17,6 +17,8 @@ import "./TimeLock.sol";
 import "./interfaces/IERC20Extended.sol";
 import "./interfaces/IStakedCLRToken.sol";
 
+import "./interfaces/ILMTerminal.sol";
+
 contract CLR is
     Initializable,
     ERC20Upgradeable,
@@ -29,7 +31,9 @@ contract CLR is
     using SafeERC20 for IERC20;
 
     uint256 private constant INITIAL_MINT_AMOUNT = 100e18;
-    uint256 private constant SWAP_SLIPPAGE = 50; // 2%
+    uint256 private constant SWAP_SLIPPAGE = 50; // 2%, used in adminSwap
+    uint256 private constant NAV_SLIPPAGE = 100; // 1%, used in rebalance
+    uint256 private constant REBALANCE_COOLDOWN = 86400; // Timeout between rebalances
     // Used to give an identical token representation
     uint8 private constant TOKEN_DECIMAL_REPRESENTATION = 18;
 
@@ -61,6 +65,8 @@ contract CLR is
     address public manager;
     address terminal;
 
+    uint256 lastRebalanceTime;
+
     struct UniswapContracts {
         address router;
         address quoter;
@@ -78,6 +84,12 @@ contract CLR is
     event ManagerSet(address indexed manager);
     event Deposit(address indexed user, uint256 amount0, uint256 amount1);
     event Withdraw(address indexed user, uint256 amount0, uint256 amount1);
+    event Rebalanced(
+        int24 oldLowerTick,
+        int24 oldUpperTick,
+        int24 newLowerTick,
+        int24 newUpperTick
+    );
 
     function initialize(
         string memory _symbol,
@@ -161,9 +173,7 @@ contract CLR is
         ) = calculatePoolMintedAmounts(amount0, amount1);
         require(
             amount0Minted >= amount0.mul(99).div(100) &&
-                amount0Minted <= amount0 &&
-                amount1Minted >= amount1.mul(99).div(100) &&
-                amount1Minted <= amount1,
+                amount1Minted >= amount1.mul(99).div(100),
             "Price slippage check"
         );
         (amount0, amount1) = (amount0Minted, amount1Minted);
@@ -246,47 +256,17 @@ contract CLR is
     }
 
     /**
-     * @notice Get token balances in CLR contract
-     * @dev returned balances are represented with 18 decimals
+     * @dev Get net asset value of CLR contract
+     * @dev Uses Uniswap V3 twap and converts values to t1 terms
+     * @dev The value returned is with 18 decimals
      */
-    function getBufferTokenBalance()
-        public
-        view
-        returns (uint256 amount0, uint256 amount1)
-    {
-        return (getBufferToken0Balance(), getBufferToken1Balance());
-    }
-
-    /**
-     * @notice Get token0 balance in CLR
-     * @dev returned balance is represented with 18 decimals
-     * @dev subtract reward amount from balance if it matches token 0
-     */
-    function getBufferToken0Balance() public view returns (uint256 amount0) {
-        amount0 = getToken0AmountInWei(
-            UniswapLibrary.subZero(
-                token0.balanceOf(address(this)),
-                rewardInfo[address(token0)].remainingRewardAmount
-            )
-        );
-    }
-
-    /**
-     * @notice Get token1 balance in CLR
-     * @dev returned balance is represented with 18 decimals
-     * @dev subtract reward amount from balance if it matches token 1
-     */
-    function getBufferToken1Balance() public view returns (uint256 amount1) {
-        amount1 = getToken1AmountInWei(
-            UniswapLibrary.subZero(
-                token1.balanceOf(address(this)),
-                rewardInfo[address(token1)].remainingRewardAmount
-            )
-        );
+    function getNAV() public view returns (uint256 nav) {
+        return UniswapLibrary.getNav();
     }
 
     /**
      * @notice Get token balances in the position
+     * @dev Token balance is represented in native token decimals
      */
     function getStakedTokenBalance()
         public
@@ -361,7 +341,7 @@ contract CLR is
      * @notice use in case there's leftover tokens in the contract
      */
     function reinvest() public onlyOwnerOrManager {
-        UniswapLibrary.rebalance(
+        UniswapLibrary.reinvest(
             UniswapLibrary.TokenDetails({
                 token0: address(token0),
                 token1: address(token1),
@@ -427,10 +407,90 @@ contract CLR is
     }
 
     /**
+     * @dev Rebalance the current position to a new position with different ticks
+     * @dev Possible only if the pool is whitelisted in Terminal
+     * @param newTickLower new lower tick of the position
+     * @param newTickUpper new upper tick of the position
+     * @param minAmount0Staked minimum t0 amount staked in position after rebalance
+     * @param minAmount1Staked minimum t1 amount staked in position after rebalance
+     * @param oneInchData one inch calldata for swapping tokens after rebalance
+     */
+    function rebalance(
+        int24 newTickLower,
+        int24 newTickUpper,
+        uint256 minAmount0Staked,
+        uint256 minAmount1Staked,
+        bytes memory oneInchData
+    ) public onlyOwnerOrManager {
+        require(
+            newTickLower != tickLower || newTickUpper != tickUpper,
+            "Need to change ticks"
+        );
+        require(
+            ILMTerminal(terminal).isRebalanceEnabled(address(this)),
+            "Rebalance is not enabled for this pool"
+        );
+        require(
+            block.timestamp >= lastRebalanceTime + REBALANCE_COOLDOWN,
+            "Can only rebalance once per 24 hours"
+        );
+        uint256 navBefore = getNAV();
+
+        // withdraw entire liquidity from the position
+        (uint256 _amount0, uint256 _amount1) = withdrawAll();
+        // burn current position NFT
+        UniswapLibrary.burn(uniContracts.positionManager, tokenId);
+        // set new ticks and prices
+        int24 oldTickLower = tickLower;
+        int24 oldTickUpper = tickUpper;
+        tickLower = newTickLower;
+        tickUpper = newTickUpper;
+        priceLower = UniswapLibrary.getSqrtRatio(newTickLower);
+        priceUpper = UniswapLibrary.getSqrtRatio(newTickUpper);
+
+        (uint256 amount0, uint256 amount1) = calculatePoolMintedAmounts(
+            _amount0,
+            _amount1
+        );
+
+        // mint the position NFT and deposit the liquidity
+        // set new NFT token id
+        tokenId = createPosition(amount0, amount1);
+
+        // swap using 1inch and stake all tokens in position after rebalance
+        if (oneInchData.length != 0) {
+            UniswapLibrary.oneInchSwap(oneInchData);
+            adminStake(
+                token0.balanceOf(address(this)),
+                token1.balanceOf(address(this))
+            );
+        }
+
+        // Check if balances are enough
+        (
+            uint256 stakedToken0Balance,
+            uint256 stakedToken1Balance
+        ) = getStakedTokenBalance();
+        require(
+            minAmount0Staked <= stakedToken0Balance &&
+                minAmount1Staked <= stakedToken1Balance,
+            "Staked token amounts after rebalance are not enough"
+        );
+        uint256 navAfter = getNAV();
+        require(
+            navAfter >= navBefore.sub(navBefore.div(NAV_SLIPPAGE)),
+            "Pool NAV impact is too high"
+        );
+        lastRebalanceTime = block.timestamp;
+
+        emit Rebalanced(oldTickLower, oldTickUpper, tickLower, tickUpper);
+    }
+
+    /**
      * @notice Admin function for staking in position
      */
     function adminStake(uint256 amount0, uint256 amount1)
-        external
+        public
         onlyOwnerOrManager
     {
         (
@@ -455,6 +515,14 @@ contract CLR is
         } else {
             swapToken1ForToken0(amount.add(amount.div(SWAP_SLIPPAGE)), amount);
         }
+    }
+
+    /**
+     * @dev Approve 1inch contract for swapping tokens
+     * @dev 1inch is used in rebalance function
+     */
+    function approveOneInch() external onlyOwnerOrManager {
+        UniswapLibrary.approveOneInch(token0, token1);
     }
 
     /**
@@ -483,6 +551,19 @@ contract CLR is
         uint128 liquidityAmount = getLiquidityForAmounts(amount0, amount1);
         (uint256 _amount0, uint256 _amount1) = unstakePosition(liquidityAmount);
         return collectPosition(uint128(_amount0), uint128(_amount1));
+    }
+
+    /**
+     * @dev Withdraws all current liquidity from the position
+     */
+    function withdrawAll()
+        private
+        returns (uint256 _amount0, uint256 _amount1)
+    {
+        // Collect fees
+        collect();
+        (_amount0, _amount1) = unstakePosition(getPositionLiquidity());
+        collectPosition(uint128(_amount0), uint128(_amount1));
     }
 
     /**
@@ -812,38 +893,6 @@ contract CLR is
      */
     function getTicks() external view returns (int24 tick0, int24 tick1) {
         return (tickLower, tickUpper);
-    }
-
-    /**
-     * Returns token0 amount in TOKEN_DECIMAL_REPRESENTATION
-     */
-    function getToken0AmountInWei(uint256 amount)
-        private
-        view
-        returns (uint256)
-    {
-        return
-            UniswapLibrary.getToken0AmountInWei(
-                amount,
-                token0Decimals,
-                token0DecimalMultiplier
-            );
-    }
-
-    /**
-     * Returns token1 amount in TOKEN_DECIMAL_REPRESENTATION
-     */
-    function getToken1AmountInWei(uint256 amount)
-        private
-        view
-        returns (uint256)
-    {
-        return
-            UniswapLibrary.getToken1AmountInWei(
-                amount,
-                token1Decimals,
-                token1DecimalMultiplier
-            );
     }
 
     /**

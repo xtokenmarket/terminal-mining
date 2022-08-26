@@ -17,18 +17,15 @@ describe('Contract: CLR', async () => {
         expect(positionLiquidity).not.to.be.eq(0);
     }),
 
-    it('should be able to get buffer balances individually', async () => {
-        let buffer = await clr.getBufferTokenBalance();
-        let buffer0 = await clr.getBufferToken0Balance();
-        let buffer1 = await clr.getBufferToken1Balance();
-        expect(buffer.amount0).to.be.eq(buffer0);
-        expect(buffer.amount1).to.be.eq(buffer1);
-    }),
-
     it('should be able to get position token balances individually', async () => {
         let position = await clr.getStakedTokenBalance();
         expect(position.amount0).not.to.be.eq(0);
         expect(position.amount1).not.to.be.eq(0);
+    }),
+
+    it('should be able to get the NAV', async () => {
+        let nav = await clr.getNAV();
+        expect(nav).not.to.be.eq(0);
     }),
 
     it('should be able to get the withdraw amounts for clr balance', async () => {

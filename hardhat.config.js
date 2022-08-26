@@ -13,9 +13,9 @@ module.exports = {
   networks: {
     hardhat: {
 			forking: {
-				url: process.env.ALCHEMY_URL_GOERLI,
-        enabled: true,
-        blockNumber: 7031001
+				url: process.env.ALCHEMY_URL,
+        enabled: false,
+        blockNumber: 15395600
 			},
       initialBaseFeePerGas: 0,
       allowUnlimitedContractSize: true
@@ -83,6 +83,6 @@ module.exports = {
   },
   contractSizer: {
     alphaSort: true,
-    runOnCompile: false,
+    runOnCompile: true,
   }
 }

@@ -346,7 +346,6 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
   if(increaseCardinality) {
     await pool.increaseObservationCardinalityNext(100);
   }
-        
   
   // Deploy Incentivized CLR pool
   await lmTerminal.deployIncentivizedPool(

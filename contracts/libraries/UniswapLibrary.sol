@@ -17,6 +17,8 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./ABDKMath64x64.sol";
 import "./Utils.sol";
 
+import "../interfaces/ICLR.sol";
+
 /**
  * Helper library for Uniswap functions
  * Used in CLR
@@ -28,6 +30,10 @@ library UniswapLibrary {
     uint8 private constant TOKEN_DECIMAL_REPRESENTATION = 18;
     uint256 private constant SWAP_SLIPPAGE = 50; // 2%
     uint256 private constant MINT_BURN_SLIPPAGE = 100; // 1%
+
+    // 1inch v4 exchange address
+    address private constant oneInchExchange =
+        0x1111111254fb6c44bAC0beD2854e76F90643097d;
 
     struct TokenDetails {
         address token0;
@@ -87,10 +93,12 @@ library UniswapLibrary {
             : token1Decimals - token0Decimals;
         return
             token0Decimals >= token1Decimals
-                ? (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(10**(12+tokenDecimalDiff)) >>
-                    192)
-                : (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(10**(12-tokenDecimalDiff)) >>
-                    192);
+                ? (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(
+                    10**(12 + tokenDecimalDiff)
+                ) >> 192)
+                : (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(
+                    10**(12 - tokenDecimalDiff)
+                ) >> 192);
     }
 
     /**
@@ -186,6 +194,151 @@ library UniswapLibrary {
             priceUpper,
             pool
         );
+    }
+
+    /**
+     *  @dev Get asset 0 twap
+     *  @dev Uses Uni V3 oracle, reading the TWAP from twap period
+     *  @dev or the earliest oracle observation time if twap period is not set
+     */
+    function getAsset0Price(
+        address pool,
+        uint32 twapPeriod,
+        uint8 token0Decimals,
+        uint8 token1Decimals,
+        uint256 tokenDiffDecimalMultiplier
+    ) public view returns (int128) {
+        uint32[] memory secondsArray = new uint32[](2);
+        // get earliest oracle observation time
+        IUniswapV3Pool poolImpl = IUniswapV3Pool(pool);
+        uint32 observationTime = getObservationTime(poolImpl);
+        uint32 currTimestamp = uint32(block.timestamp);
+        uint32 earliestObservationSecondsAgo = currTimestamp - observationTime;
+        if (
+            twapPeriod == 0 ||
+            !Utils.lte(
+                currTimestamp,
+                observationTime,
+                currTimestamp - twapPeriod
+            )
+        ) {
+            // set to earliest observation time if:
+            // a) twap period is 0 (not set)
+            // b) now - twap period is before earliest observation
+            secondsArray[0] = earliestObservationSecondsAgo;
+        } else {
+            secondsArray[0] = twapPeriod;
+        }
+        secondsArray[1] = 0;
+        (int56[] memory prices, ) = poolImpl.observe(secondsArray);
+
+        int128 twap = Utils.getTWAP(prices, secondsArray[0]);
+        if (token1Decimals > token0Decimals) {
+            // divide twap by token decimal difference
+            twap = ABDKMath64x64.mul(
+                twap,
+                ABDKMath64x64.divu(1, tokenDiffDecimalMultiplier)
+            );
+        } else if (token0Decimals > token1Decimals) {
+            // multiply twap by token decimal difference
+            int128 multiplierFixed = ABDKMath64x64.fromUInt(
+                tokenDiffDecimalMultiplier
+            );
+            twap = ABDKMath64x64.mul(twap, multiplierFixed);
+        }
+        return twap;
+    }
+
+    /**
+     *  @dev Get asset 1 twap
+     *  @dev Uses Uni V3 oracle, reading the TWAP from twap period
+     *  @dev or the earliest oracle observation time if twap period is not set
+     */
+    function getAsset1Price(
+        address pool,
+        uint32 twapPeriod,
+        uint8 token0Decimals,
+        uint8 token1Decimals,
+        uint256 tokenDiffDecimalMultiplier
+    ) public view returns (int128) {
+        return
+            ABDKMath64x64.inv(
+                getAsset0Price(
+                    pool,
+                    twapPeriod,
+                    token0Decimals,
+                    token1Decimals,
+                    tokenDiffDecimalMultiplier
+                )
+            );
+    }
+
+    /**
+     * @dev Returns amount in terms of asset 0
+     * @dev amount * asset 1 price
+     */
+    function getAmountInAsset0Terms(
+        uint256 amount,
+        address pool,
+        uint32 twapPeriod,
+        uint8 token0Decimals,
+        uint8 token1Decimals,
+        uint256 tokenDiffDecimalMultiplier
+    ) public view returns (uint256) {
+        return
+            ABDKMath64x64.mulu(
+                getAsset1Price(
+                    pool,
+                    twapPeriod,
+                    token0Decimals,
+                    token1Decimals,
+                    tokenDiffDecimalMultiplier
+                ),
+                amount
+            );
+    }
+
+    /**
+     * @dev Returns amount in terms of asset 1
+     * @dev amount * asset 0 price
+     */
+    function getAmountInAsset1Terms(
+        uint256 amount,
+        address pool,
+        uint32 twapPeriod,
+        uint8 token0Decimals,
+        uint8 token1Decimals,
+        uint256 tokenDiffDecimalMultiplier
+    ) public view returns (uint256) {
+        return
+            ABDKMath64x64.mulu(
+                getAsset0Price(
+                    pool,
+                    twapPeriod,
+                    token0Decimals,
+                    token1Decimals,
+                    tokenDiffDecimalMultiplier
+                ),
+                amount
+            );
+    }
+
+    /**
+     * @dev Returns the earliest oracle observation time
+     */
+    function getObservationTime(IUniswapV3Pool _pool)
+        public
+        view
+        returns (uint32)
+    {
+        IUniswapV3Pool pool = _pool;
+        (, , uint16 index, uint16 cardinality, , , ) = pool.slot0();
+        uint16 oldestObservationIndex = (index + 1) % cardinality;
+        (uint32 observationTime, , , bool initialized) = pool.observations(
+            oldestObservationIndex
+        );
+        if (!initialized) (observationTime, , , ) = pool.observations(0);
+        return observationTime;
     }
 
     /* ========================================================================================= */
@@ -327,6 +480,28 @@ library UniswapLibrary {
     }
 
     /* ========================================================================================= */
+    /*                               1inch Swap Helper functions                                 */
+    /* ========================================================================================= */
+
+    /**
+     * @dev Swap tokens in CLR (mining pool) using 1inch v4 exchange
+     * @param _oneInchData - One inch calldata, generated off-chain from their v4 api for the swap
+     */
+    function oneInchSwap(bytes memory _oneInchData) public {
+        (bool success, ) = oneInchExchange.call(_oneInchData);
+
+        require(success, "One inch swap call failed");
+    }
+
+    /**
+     * Approve 1inch v4 for swaps
+     */
+    function approveOneInch(IERC20 token0, IERC20 token1) public {
+        token0.safeApprove(oneInchExchange, type(uint256).max);
+        token1.safeApprove(oneInchExchange, type(uint256).max);
+    }
+
+    /* ========================================================================================= */
     /*                               NFT Position Manager Helpers                                */
     /* ========================================================================================= */
 
@@ -444,6 +619,14 @@ library UniswapLibrary {
         );
     }
 
+    /**
+     * @dev burn NFT representing a pool position with tokenId
+     * @dev uses NFT Position Manager
+     */
+    function burn(address positionManager, uint256 tokenId) public {
+        INonfungiblePositionManager(positionManager).burn(tokenId);
+    }
+
     /* ========================================================================================= */
     /*                                  CLR Helpers                                        */
     /* ========================================================================================= */
@@ -456,7 +639,7 @@ library UniswapLibrary {
      * @dev all or most of the tokens in the position, and
      * @dev no tokens in buffer balance ; swaps as necessary
      */
-    function rebalance(
+    function reinvest(
         TokenDetails memory tokenDetails,
         PositionDetails memory positionDetails
     ) public {
@@ -506,7 +689,7 @@ library UniswapLibrary {
             positionDetails.priceUpper,
             positionDetails.pool
         );
-        require(amount0 != 0 || amount1 != 0, "Rebalance amounts are 0");
+        require(amount0 != 0 || amount1 != 0, "Reinvest amounts are 0");
         stake(
             amount0,
             amount1,
@@ -516,7 +699,7 @@ library UniswapLibrary {
     }
 
     /**
-     * @dev Check if token amounts match before attempting rebalance in CLR
+     * @dev Check if token amounts match before attempting reinvest in CLR
      * @dev Uniswap contract requires deposits at a precise token ratio
      * @dev If they don't match, swap the tokens so as to deposit as much as possible
      * @param amount0ToMint how much token0 amount we want to deposit/withdraw
@@ -745,6 +928,88 @@ library UniswapLibrary {
             token1Decimals,
             token1DecimalMultiplier
         );
+    }
+
+    /**
+     * @dev Get net asset value of CLR contract
+     * @dev Uses Uniswap V3 twap and converts values to t1 terms
+     */
+    function getNav() public view returns (uint256) {
+        return getStakedBalance().add(getBufferBalance());
+    }
+
+    /**
+     * @dev Get staked balance in the position in terms of token 1
+     * @dev Uses Uni V3 twap
+     */
+    function getStakedBalance() public view returns (uint256) {
+        ICLR clrPool = ICLR(address(this));
+        (uint256 amount0, uint256 amount1) = clrPool.getStakedTokenBalance();
+        uint8 token0Decimals = clrPool.token0Decimals();
+        uint8 token1Decimals = clrPool.token1Decimals();
+        uint256 token0DecimalMultiplier = clrPool.token0DecimalMultiplier();
+        uint256 token1DecimalMultiplier = clrPool.token1DecimalMultiplier();
+        uint256 tokenDiffDecimalMultiplier = 10 **
+            ((subAbs(token0Decimals, token1Decimals)));
+        return
+            getAmountInAsset1Terms(
+                getToken0AmountInWei(
+                    amount0,
+                    token0Decimals,
+                    token0DecimalMultiplier
+                ),
+                clrPool.uniswapPool(),
+                3600, // twap period
+                token0Decimals,
+                token1Decimals,
+                tokenDiffDecimalMultiplier
+            ).add(
+                    getToken1AmountInWei(
+                        amount1,
+                        token1Decimals,
+                        token1DecimalMultiplier
+                    )
+                );
+    }
+
+    /**
+     * @dev Get buffer balance of CLR in terms of token 1
+     * @dev Uses Uni V3 twap
+     */
+    function getBufferBalance() public view returns (uint256) {
+        ICLR clrPool = ICLR(address(this));
+
+        uint8 token0Decimals = clrPool.token0Decimals();
+        uint8 token1Decimals = clrPool.token1Decimals();
+        uint256 token0DecimalMultiplier = clrPool.token0DecimalMultiplier();
+        uint256 token1DecimalMultiplier = clrPool.token1DecimalMultiplier();
+        uint256 tokenDiffDecimalMultiplier = 10 **
+            ((subAbs(token0Decimals, token1Decimals)));
+
+        IERC20 token0 = IERC20(clrPool.token0());
+        IERC20 token1 = IERC20(clrPool.token1());
+        uint256 balance0 = token0.balanceOf(address(this));
+        uint256 balance1 = token1.balanceOf(address(this));
+
+        balance0 = getToken0AmountInWei(
+            balance0,
+            token0Decimals,
+            token0DecimalMultiplier
+        );
+        balance1 = getToken0AmountInWei(
+            balance1,
+            token1Decimals,
+            token1DecimalMultiplier
+        );
+        return
+            getAmountInAsset1Terms(
+                balance0,
+                clrPool.uniswapPool(),
+                3600, // twap period
+                token0Decimals,
+                token1Decimals,
+                tokenDiffDecimalMultiplier
+            ).add(balance1);
     }
 
     /* ========================================================================================= */

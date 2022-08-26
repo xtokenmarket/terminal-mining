@@ -47,15 +47,6 @@ interface ICLR is IERC20, IStakingRewards {
         view
         returns (uint256 amount0, uint256 amount1);
 
-    function getBufferToken0Balance() external view returns (uint256 amount0);
-
-    function getBufferToken1Balance() external view returns (uint256 amount1);
-
-    function getBufferTokenBalance()
-        external
-        view
-        returns (uint256 amount0, uint256 amount1);
-
     function getLiquidityForAmounts(uint256 amount0, uint256 amount1)
         external
         view
