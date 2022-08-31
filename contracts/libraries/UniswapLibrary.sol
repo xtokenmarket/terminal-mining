@@ -87,10 +87,12 @@ library UniswapLibrary {
             : token1Decimals - token0Decimals;
         return
             token0Decimals >= token1Decimals
-                ? (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(10**(12+tokenDecimalDiff)) >>
-                    192)
-                : (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(10**(12-tokenDecimalDiff)) >>
-                    192);
+                ? (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(
+                    10**(12 + tokenDecimalDiff)
+                ) >> 192)
+                : (uint256(sqrtRatioX96).mul(uint256(sqrtRatioX96)).mul(
+                    10**(12 - tokenDecimalDiff)
+                ) >> 192);
     }
 
     /**

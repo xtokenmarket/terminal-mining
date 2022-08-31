@@ -14,11 +14,13 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "./interfaces/IERC20Extended.sol";
 import "./interfaces/ICLR.sol";
 import "./interfaces/IStakedCLRToken.sol";
+import "./interfaces/INonRewardPool.sol";
 import "./interfaces/IRewardEscrow.sol";
 import "./interfaces/IxTokenManager.sol";
 import "./interfaces/IProxyAdmin.sol";
 
 import "./CLRDeployer.sol";
+import "./NonRewardPoolDeployer.sol";
 
 /**
  * Liquidity Mining Terminal
@@ -49,6 +51,8 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
     ICLR.UniswapContracts public uniContracts; // Uniswap V3 Contracts
 
     mapping(address => bool) private isCLRPool; // True if address is CLR pool
+
+    NonRewardPoolDeployer public nonRewardPoolDeployer; // Deployer contract for non-reward pools
 
     // -- Structs --
 
@@ -81,6 +85,14 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
     );
     event DeployedIncentivizedPool(
         address indexed clrInstance,
+        address indexed token0,
+        address indexed token1,
+        uint24 fee,
+        int24 lowerTick,
+        int24 upperTick
+    );
+    event DeployedNonIncentivizedPool(
+        address indexed poolInstance,
         address indexed token0,
         address indexed token1,
         uint24 fee,
@@ -148,6 +160,97 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
             initPrice
         );
         emit DeployedUniV3Pool(pool, token0, token1, fee);
+    }
+
+    /**
+     * @notice Deploys a Uni V3 pool which is not incentivized
+     * @notice Address calling this function needs to approve token 0 and token 1 to Terminal
+     *
+     * @param symbol Pool token symbol
+     * @param ticks lower and upper ticks of the position
+     * @param pool pool fee, token0, token1 and initial liquidity amounts
+     */
+    function deployNonIncentivizedPool(
+        string memory symbol,
+        PositionTicks memory ticks,
+        PoolDetails memory pool
+    ) external payable {
+        uint256 feeOwed = customDeploymentFeeEnabled[msg.sender]
+            ? customDeploymentFee[msg.sender]
+            : deploymentFee;
+        require(
+            msg.value == feeOwed,
+            "Need to send ETH for non reward pool deployment"
+        );
+        // Deploy pool
+        INonRewardPool nonRewardPool = INonRewardPool(
+            nonRewardPoolDeployer.deployNonRewardPool(proxyAdmin)
+        );
+
+        // Initialize CLR
+        if (pool.token0 > pool.token1) {
+            (pool.token0, pool.token1) = (pool.token1, pool.token0);
+            (pool.amount0, pool.amount1) = (pool.amount1, pool.amount0);
+        }
+        address poolAddress = getPool(pool.token0, pool.token1, pool.fee);
+
+        // Initialize non reward pool
+        nonRewardPool.initialize(
+            symbol,
+            ticks.lowerTick,
+            ticks.upperTick,
+            pool.fee,
+            tradeFee,
+            pool.token0,
+            pool.token1,
+            address(this),
+            poolAddress,
+            INonRewardPool.UniswapContracts({
+                router: uniContracts.router,
+                quoter: uniContracts.quoter,
+                positionManager: uniContracts.positionManager
+            })
+        );
+
+        (uint256 actualAmount0, uint256 actualAmount1) = nonRewardPool
+            .calculatePoolMintedAmounts(pool.amount0, pool.amount1);
+
+        // Approve tokens to non reward pool
+        IERC20(pool.token0).safeApprove(address(nonRewardPool), actualAmount0);
+        IERC20(pool.token1).safeApprove(address(nonRewardPool), actualAmount1);
+
+        // Transfer initial mint tokens to Terminal
+        IERC20(pool.token0).safeTransferFrom(
+            msg.sender,
+            address(this),
+            actualAmount0
+        );
+        IERC20(pool.token1).safeTransferFrom(
+            msg.sender,
+            address(this),
+            actualAmount1
+        );
+
+        // Create Uniswap V3 Position, seed with initial liquidity
+        nonRewardPool.mintInitial(actualAmount0, actualAmount1, msg.sender);
+
+        // Transfer ownership of pool to deployer
+        nonRewardPool.transferOwnership(msg.sender);
+
+        // Set pool proxy admin to deployer
+        IProxyAdmin(proxyAdmin).addProxyAdmin(
+            address(nonRewardPool),
+            msg.sender
+        );
+
+        emit DeployedNonIncentivizedPool(
+            address(nonRewardPool),
+            pool.token0,
+            pool.token1,
+            pool.fee,
+            ticks.lowerTick,
+            ticks.upperTick
+        );
     }
 
     /**
