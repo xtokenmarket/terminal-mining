@@ -115,6 +115,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
         address _rewardEscrow,
         address _proxyAdmin,
         address _clrDeployer,
+        address _nonRewardPoolDeployer,
         address _uniswapFactory,
         ICLR.UniswapContracts memory _uniContracts,
         uint256 _deploymentFee,
@@ -126,6 +127,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
         rewardEscrow = IRewardEscrow(_rewardEscrow);
         proxyAdmin = _proxyAdmin;
         clrDeployer = CLRDeployer(_clrDeployer);
+        nonRewardPoolDeployer = NonRewardPoolDeployer(_nonRewardPoolDeployer);
         positionManager = INonfungiblePositionManager(
             _uniContracts.positionManager
         );
@@ -507,6 +509,13 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
      */
     function setCLRDeployer(address newDeployer) public onlyOwner {
         clrDeployer = CLRDeployer(newDeployer);
+    }
+
+    /**
+     * @dev Change Non Reward Pool Deployer address
+     */
+    function setNonRewardPoolDeployer(address newDeployer) public onlyOwner {
+        nonRewardPoolDeployer = NonRewardPoolDeployer(newDeployer);
     }
 
     /**

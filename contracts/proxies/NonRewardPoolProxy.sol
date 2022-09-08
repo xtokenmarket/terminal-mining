@@ -61,7 +61,7 @@ contract NonRewardPoolProxy is TransparentUpgradeableProxy {
         require(
             INonRewardPoolDeployer(_poolDeployer())
                 .nonRewardPoolImplementation() == _implementation,
-            "Can only upgrade to latest pool implementation"
+            "Can only upgrade to latest NonRewardPool implementation"
         );
         _upgradeTo(_implementation);
     }
@@ -75,7 +75,7 @@ contract NonRewardPoolProxy is TransparentUpgradeableProxy {
         require(
             INonRewardPoolDeployer(_poolDeployer())
                 .nonRewardPoolImplementation() == _implementation,
-            "Can only upgrade to latest pool implementation"
+            "Can only upgrade to latest NonRewardPool implementation"
         );
         _upgradeTo(_implementation);
         Address.functionDelegateCall(_implementation, data);

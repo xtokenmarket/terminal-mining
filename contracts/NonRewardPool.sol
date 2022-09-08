@@ -133,7 +133,6 @@ contract NonRewardPool is
 
     /**
      *  @dev Mint pool tokens by depositing LP tokens
-     *  @dev Minted tokens are staked in pool instance, while address receives a receipt token
      *  @param amount0 token 0 amount
      *  @param amount1 token 1 amount
      */
@@ -162,7 +161,7 @@ contract NonRewardPool is
         uint256 mintAmount = calculateMintAmount(amount0, amount1);
 
         // Mint pool tokens for LP
-        super._mint(address(this), mintAmount);
+        super._mint(msg.sender, mintAmount);
         // Stake tokens in pool
         _stake(amount0, amount1);
         // Emit event
@@ -183,9 +182,8 @@ contract NonRewardPool is
         lock(msg.sender);
         require(amount > 0);
 
-        uint256 addressBalance = IERC20(address(this)).balanceOf(msg.sender);
         require(
-            amount <= addressBalance,
+            amount <= balanceOf(msg.sender),
             "Address doesn't have enough balance to burn"
         );
         (
@@ -194,7 +192,7 @@ contract NonRewardPool is
         ) = calculateWithdrawAmounts(amount);
 
         // Burn pool token
-        super._burn(address(this), amount);
+        super._burn(msg.sender, amount);
 
         // Withdraw
         (uint256 unstakedAmount0, uint256 unstakedAmount1) = _unstake(
@@ -398,7 +396,7 @@ contract NonRewardPool is
         tokenId = createPosition(amount0Minted, amount1Minted);
         uint256 mintAmount = INITIAL_MINT_AMOUNT;
 
-        super._mint(address(this), mintAmount);
+        super._mint(sender, mintAmount);
         // Emit event
         emit Deposit(sender, amount0Minted, amount1Minted);
     }

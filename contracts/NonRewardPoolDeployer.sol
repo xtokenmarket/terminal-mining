@@ -20,12 +20,12 @@ contract NonRewardPoolDeployer is Ownable {
         external
         returns (address pool)
     {
-        NonRewardPoolProxy clrInstance = new NonRewardPoolProxy(
+        NonRewardPoolProxy poolInstance = new NonRewardPoolProxy(
             nonRewardPoolImplementation,
             _proxyAdmin,
             address(this)
         );
-        return address(clrInstance);
+        return address(poolInstance);
     }
 
     function setNonRewardPoolImplementation(address _poolImplementation)
