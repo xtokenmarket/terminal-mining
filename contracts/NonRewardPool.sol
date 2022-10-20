@@ -72,6 +72,13 @@ contract NonRewardPool is
     event Deposit(address indexed user, uint256 amount0, uint256 amount1);
     event Withdraw(address indexed user, uint256 amount0, uint256 amount1);
 
+    //--------------------------------------------------------------------------
+    // Constructor / Initializer
+    //--------------------------------------------------------------------------
+
+    // Initialize the implementation
+    constructor() initializer {}
+
     function initialize(
         string memory _symbol,
         int24 _tickLower,

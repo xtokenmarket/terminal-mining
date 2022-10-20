@@ -4,7 +4,7 @@ const { bnDecimal, increaseTime, getPriceInX96, deploy, deployAndLink } = requir
 const { deploymentFixture } = require('../fixture');
 
 // Tests for NonRewardPool Proxy
-describe('Contract: CLRProxy', async () => {
+describe('Contract: NonRewardPoolProxy', async () => {
     let lmTerminal, token0, token1, NonRewardPoolDeployer, admin, user1, user2, user3;
     let rewardProgramDuration, nonRewardPool, nonRewardPoolProxy, token0Decimals;
     let proxyAdmin;
@@ -65,6 +65,19 @@ describe('Contract: CLRProxy', async () => {
         // Upgrade after changing latest NonRewardPool implementation in NonRewardPool Deployer
         await expect(proxyAdmin.connect(admin).upgradeAndCall(nonRewardPoolProxy.address, newNonRewardPoolImplementation.address, '0x00')).
             not.to.be.revertedWith('Can only upgrade to latest NonRewardPool implementation');
+    }),
+
+    it(`shouldn't be be able to reinitialize NonRewardPool proxy`, async () => {
+        // Try to reinitialize newly deployed NonRewardPool proxy
+        await expect(nonRewardPool.connect(user1).initialize('NonRewardPool', -1000, 1000, 500, 100, 
+        ethers.constants.AddressZero, ethers.constants.AddressZero,
+        ethers.constants.AddressZero, ethers.constants.AddressZero,
+        {
+            router: ethers.constants.AddressZero,
+            quoter: ethers.constants.AddressZero, 
+            positionManager: ethers.constants.AddressZero
+        })).
+            to.be.revertedWith('Initializable: contract is already initialized');
     })
   })
 })

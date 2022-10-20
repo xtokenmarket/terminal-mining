@@ -13,6 +13,13 @@ contract StakedCLRToken is ERC20Upgradeable, TimeLock {
     address public clrPool;
     bool public transferable;
 
+    //--------------------------------------------------------------------------
+    // Constructor / Initializer
+    //--------------------------------------------------------------------------
+
+    // Initialize the implementation
+    constructor() initializer {}
+
     function initialize(
         string memory _name,
         string memory _symbol,

@@ -108,7 +108,12 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
     event TokenFeeWithdraw(address indexed token, uint256 amount);
     event EthFeeWithdraw(uint256 amount);
 
-    // --- Management functions ---
+    //--------------------------------------------------------------------------
+    // Constructor / Initializer
+    //--------------------------------------------------------------------------
+
+    // Initialize the implementation
+    constructor() initializer {}
 
     function initialize(
         address _xTokenManager,

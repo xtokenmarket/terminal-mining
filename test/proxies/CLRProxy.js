@@ -65,6 +65,25 @@ describe('Contract: CLRProxy', async () => {
         // Upgrade after changing latest CLR implementation in CLR Deployer
         await expect(proxyAdmin.connect(admin).upgradeAndCall(clrProxy.address, newCLRImplementation.address, '0x00')).
             not.to.be.revertedWith('Can only upgrade to latest CLR implementation');
+    }),
+
+    it(`shouldn't be be able to reinitialize CLR proxy`, async () => {
+        // Try to reinitialize newly deployed CLR proxy
+        await expect(clr.connect(user1).initialize('CLR', -1000, 1000, 500, 100, 
+        ethers.constants.AddressZero, ethers.constants.AddressZero,
+        ethers.constants.AddressZero, ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        {
+            router: ethers.constants.AddressZero,
+            quoter: ethers.constants.AddressZero, 
+            positionManager: ethers.constants.AddressZero
+        },
+        {
+            rewardTokens: [ethers.constants.AddressZero], 
+            rewardEscrow: ethers.constants.AddressZero,
+            rewardsAreEscrowed: false
+        })).
+            to.be.revertedWith('Initializable: contract is already initialized');
     })
   })
 })

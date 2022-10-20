@@ -37,5 +37,5 @@ contract NonRewardPoolDeployer is Ownable {
     }
 
     // Events
-    event NonRewardPoolImplementationSet(address indexed clrImplementation);
+    event NonRewardPoolImplementationSet(address indexed poolImplementation);
 }
