@@ -46,8 +46,14 @@ const deploymentFixture = deployments.createFixture(async () => {
     let CLR = await deployAndLink('CLR', 'UniswapLibrary', uniLib.address);
     let StakedCLRToken = await deploy('StakedCLRToken');
 
+    // Deploy NonRewardPool instance
+    let nonRewardPool = await deployAndLink('NonRewardPool', 'UniswapLibrary', uniLib.address);
+
     // Deploy CLR Proxy factory
     const CLRDeployer = await deployArgs('CLRDeployer', CLR.address, StakedCLRToken.address);
+
+    // Deploy NonRewardPool Proxy factory
+    const NonRewardPoolDeployer = await deployArgs('NonRewardPoolDeployer', nonRewardPool.address);
 
     // Deploy Liquidity Mining Terminal
     const lmTerminalImpl = await deploy('LMTerminal');
@@ -64,8 +70,8 @@ const deploymentFixture = deployments.createFixture(async () => {
 
     // Initialize LM Terminal
     await lmTerminal.initialize(xTokenManager.address, 
-        rewardEscrow.address, proxyAdmin.address, CLRDeployer.address, uniFactory.address,
-        { router: swapRouter.address, quoter: quoter.address, 
+        rewardEscrow.address, proxyAdmin.address, CLRDeployer.address, NonRewardPoolDeployer.address,
+         uniFactory.address, { router: swapRouter.address, quoter: quoter.address, 
           positionManager: positionManager.address }, bnDecimal(1), 100, 1000);
 
     // transfer tokens to other users
@@ -84,7 +90,7 @@ const deploymentFixture = deployments.createFixture(async () => {
     await token1.connect(user2).approve(lmTerminal.address, bnDecimal(1000000000));
 
     return {
-      token0, token1, rewardToken, lmTerminal, CLRDeployer, swapRouter, proxyAdmin
+      token0, token1, rewardToken, lmTerminal, CLRDeployer, NonRewardPoolDeployer, swapRouter, proxyAdmin
     }
 });
 

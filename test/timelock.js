@@ -46,7 +46,7 @@ describe('Contract: LM Terminal', async () => {
 
   describe('Mint, burn and transfer lock', async () => {
     it(`account shouldn\'t be able to call mint, burn and transfer 
-            before 5 minutes have passed`, async () => {
+            before 1 minute has passed`, async () => {
         let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
         await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         await expect(clr.withdraw(bnDecimal(1), 0, 0)).
@@ -56,7 +56,7 @@ describe('Contract: LM Terminal', async () => {
     }),
 
     it(`account shouldn\'t be able to call burn, mint and transfer 
-            before 5 minutes have passed`, async () => {
+            before 1 minute has passed`, async () => {
         await clr.withdraw(bnDecimal(1), 0, 0);
         let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
         await expect(clr.deposit(amts.amount0Minted, amts.amount1Minted)).
@@ -66,7 +66,7 @@ describe('Contract: LM Terminal', async () => {
     }),
 
     it(`no account should be able to call transferFrom from sender address
-         which has called mint before 5 minutes have passed`, async () => {
+         which has called mint before 1 minute has passed`, async () => {
         await stakedToken.approve(user1.address, bnDecimal(100000));
         await stakedToken.approve(user2.address, bnDecimal(100000));
         let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
@@ -78,7 +78,7 @@ describe('Contract: LM Terminal', async () => {
     }),
 
     it(`no account should be able to call transferFrom from sender address
-         which has called burn before 5 minutes have passed`, async () => {
+         which has called burn before 1 minute has passed`, async () => {
         await stakedToken.approve(user1.address, bnDecimal(100000));
         await stakedToken.approve(user2.address, bnDecimal(100000));
         await clr.withdraw(bnDecimal(1), 0, 0);
@@ -89,7 +89,7 @@ describe('Contract: LM Terminal', async () => {
     }),
 
     it(`account should be able to call mint, burn, transfer or transferFrom 
-            if more than 5 minutes have passed`, async () => {
+            if more than 1 minute has passed`, async () => {
         let amts = await clr.calculateAmountsMintedSingleToken(0, bnDecimals(100000, token0Decimals));
         await clr.deposit(amts.amount0Minted, amts.amount1Minted);
         await increaseTime(300);

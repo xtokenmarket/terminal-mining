@@ -280,9 +280,6 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
   const router = await deployWithAbi(swapRouter, admin, uniFactory.address, token0.address);
   const quoter = await deployWithAbi(UniQuoter, admin, uniFactory.address, token0.address);
 
-  // Deploy Reward token
-  let rewardToken = await deployArgs('ERC20Basic', 'DAI', 'DAI');
-
   // Deploy Vesting contract
   const rewardEscrowImpl = await deploy('RewardEscrow');
   const rewardEscrowProxy = await deployArgs('RewardEscrowProxy', rewardEscrowImpl.address, user3.address);
@@ -296,8 +293,13 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
   let CLRImplementation = await deployAndLink('CLR', 'UniswapLibrary', uniswapLibrary.address);
   let StakedCLRToken = await deploy('StakedCLRToken');
 
+  // Deploy Non reward pool instance
+  let nonRewardPoolImplementation = await deployAndLink('NonRewardPool', 'UniswapLibrary', uniswapLibrary.address);
+
   // Deploy CLR Proxy factory
   const CLRDeployer = await deployArgs('CLRDeployer', CLRImplementation.address, StakedCLRToken.address);
+
+  const nonRewardPoolDeployer = await deployArgs('NonRewardPoolDeployer', nonRewardPoolImplementation.address);
 
   // Deploy Liquidity Mining Terminal
   const lmTerminalImpl = await deploy('LMTerminal');
@@ -314,7 +316,7 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
 
   // Initialize LM Terminal
   await lmTerminal.initialize(xTokenManager.address, 
-      rewardEscrow.address, proxyAdmin.address, CLRDeployer.address, ethers.constants.AddressZero,
+      rewardEscrow.address, proxyAdmin.address, CLRDeployer.address, nonRewardPoolDeployer.address,
        uniFactory.address, { router: router.address, quoter: quoter.address, 
         positionManager: positionManager.address }, bnDecimal(1), 100, 1000);
 
@@ -327,7 +329,6 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
   // approve terminal
   await token0.approve(lmTerminal.address, bnDecimal(1000000000));
   await token1.approve(lmTerminal.address, bnDecimal(1000000000));
-  await rewardToken.approve(lmTerminal.address, bnDecimal(1000000000));
   await token0.connect(user1).approve(lmTerminal.address, bnDecimal(1000000000));
   await token1.connect(user1).approve(lmTerminal.address, bnDecimal(1000000000));
   await token0.connect(user2).approve(lmTerminal.address, bnDecimal(1000000000));
@@ -348,31 +349,30 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
   }
         
   
-  // Deploy Incentivized CLR pool
-  await lmTerminal.deployIncentivizedPool(
-      'token0-token1-CLR', 
+  // Deploy non reward pool
+  let tx = await lmTerminal.deployNonIncentivizedPool(
+      'token0-token1-NonRewardPool', 
       { lowerTick: lowTick, upperTick: highTick }, 
-      { rewardTokens: [rewardToken.address], vestingPeriod: 0 }, 
       { fee: 3000, token0: token0.address, token1: token1.address, 
         amount0: bnDecimals(10000000, token0Decimals), amount1: bnDecimals(10000000, token1Decimals)}, 
       { value: lmTerminal.deploymentFee() });
 
-  let clrPoolAddress = await lmTerminal.deployedCLRPools(0);
-  let clr = await ethers.getContractAt('CLR', clrPoolAddress);
+  let receipt = await tx.wait();
+  let poolDeployment = receipt.events.filter(e => e.event == 'DeployedNonIncentivizedPool');
 
-  let stakedTokenAddress = await clr.stakedToken();
-  let stakedToken = await ethers.getContractAt('StakedCLRToken', stakedTokenAddress);
+  let nonRewardPoolAddress = poolDeployment[0].args.poolInstance;
+  let nonRewardPool = await ethers.getContractAt('NonRewardPool', nonRewardPoolAddress);
 
-  await token0.approve(clr.address, bnDecimal(10000000000));
-  await token1.approve(clr.address, bnDecimal(10000000000));
-  await token0.connect(user1).approve(clr.address, bnDecimal(10000000000));
-  await token1.connect(user1).approve(clr.address, bnDecimal(10000000000));
-  await token0.connect(user2).approve(clr.address, bnDecimal(10000000000));
-  await token1.connect(user2).approve(clr.address, bnDecimal(10000000000));
+  await token0.approve(nonRewardPool.address, bnDecimal(10000000000));
+  await token1.approve(nonRewardPool.address, bnDecimal(10000000000));
+  await token0.connect(user1).approve(nonRewardPool.address, bnDecimal(10000000000));
+  await token1.connect(user1).approve(nonRewardPool.address, bnDecimal(10000000000));
+  await token0.connect(user2).approve(nonRewardPool.address, bnDecimal(10000000000));
+  await token1.connect(user2).approve(nonRewardPool.address, bnDecimal(10000000000));
   await increaseTime(300);
 
   return {
-    token0, token1, rewardToken, lmTerminal, clr, stakedToken, router,
+    token0, token1, lmTerminal, nonRewardPool, router,
     uniswapLibrary, xTokenManager, token0Decimals, token1Decimals
   }
 }

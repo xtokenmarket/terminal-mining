@@ -63,6 +63,13 @@ describe('Contract: StakedCLRTokenProxy', async () => {
         // Upgrade after changing latest SCLR token implementation in CLR Deployer
         await expect(proxyAdmin.connect(admin).upgradeAndCall(stakedTokenProxy.address, newStakedToken.address, '0x00')).
             not.to.be.revertedWith('Can only upgrade to latest Staked CLR token implementation');
+    }),
+
+    it(`shouldn't be be able to reinitialize staked clr token proxy`, async () => {
+        // Try to reinitialize newly deployed staked token proxy
+        await expect(
+            stakedToken.connect(user1).initialize('stakedToken', 'STKD', clr.address, true)).
+                to.be.revertedWith('Initializable: contract is already initialized');
     })
   })
 })
