@@ -7,7 +7,7 @@ pragma solidity 0.7.6;
  */
 contract TimeLock {
     // how many seconds are the functions locked for
-    uint256 private constant TIME_LOCK_SECONDS = 60; // 1 minute
+    uint256 private constant TIME_LOCK_SECONDS = 10; // 10 seconds
     // last timestamp for which this address is timelocked
     mapping(address => uint256) public lastLockedTimestamp;
 
