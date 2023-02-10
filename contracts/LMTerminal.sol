@@ -181,7 +181,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
         string memory symbol,
         PositionTicks memory ticks,
         PoolDetails memory pool
-    ) external payable {
+    ) external payable returns (address nonRewardPoolAddress) {
         uint256 feeOwed = customDeploymentFeeEnabled[msg.sender]
             ? customDeploymentFee[msg.sender]
             : deploymentFee;
@@ -258,6 +258,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
             ticks.lowerTick,
             ticks.upperTick
         );
+        return address(nonRewardPool);
     }
 
     /**
@@ -275,7 +276,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
         PositionTicks memory ticks,
         RewardsProgram memory rewardsProgram,
         PoolDetails memory pool
-    ) external payable {
+    ) external payable returns (address clrPoolAddress) {
         uint256 feeOwed = customDeploymentFeeEnabled[msg.sender]
             ? customDeploymentFee[msg.sender]
             : deploymentFee;
@@ -377,6 +378,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
             ticks.lowerTick,
             ticks.upperTick
         );
+        return address(clrPool);
     }
 
     /**
