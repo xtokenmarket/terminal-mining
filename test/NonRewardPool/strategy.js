@@ -1,7 +1,13 @@
 const assert = require("assert");
 const { expect } = require("chai");
 const { deploymentFixture } = require("./fixture");
-const { deployArgs, bnDecimals } = require("../../scripts/helpers");
+const {
+  deployArgs,
+  bnDecimals,
+  swapToken1ForToken0,
+  swapToken0ForToken1,
+  bnDecimal,
+} = require("../../scripts/helpers");
 
 describe("Contract: NonRewardPool", async () => {
   let nonRewardPool,
@@ -13,9 +19,10 @@ describe("Contract: NonRewardPool", async () => {
     token0Decimals,
     token0,
     token1,
-    amount;
+    amount,
+    router
   beforeEach(async () => {
-    ({ nonRewardPool, xTokenManager, token0Decimals, token0, token1 } =
+    ({ nonRewardPool, xTokenManager, token0Decimals, token0, token1, router } =
       await deploymentFixture());
     [admin, user1, user2, user3, ...addrs] = await ethers.getSigners();
     strategy = await deployArgs("MockStrategy", nonRewardPool.address);
@@ -56,8 +63,8 @@ describe("Contract: NonRewardPool", async () => {
       await strategy.connect(user1).withdraw(nrpBal, 0, 0);
       const token0BalAfter = await token0.balanceOf(user1.address);
       const token1BalAfter = await token1.balanceOf(user1.address);
-      expect(token0BalAfter).to.be.gt(token0BalBefore)
-      expect(token1BalAfter).to.be.gt(token1BalBefore)
+      expect(token0BalAfter).to.be.gt(token0BalBefore);
+      expect(token1BalAfter).to.be.gt(token1BalBefore);
     });
     it("should not allow a non owner/manager to call depositFromStrategy", async () => {
       let mint = await nonRewardPool.calculateAmountsMintedSingleToken(
@@ -71,7 +78,7 @@ describe("Contract: NonRewardPool", async () => {
       ).to.be.revertedWith("Function may be called only by owner or manager");
     });
     it("should not allow the deposit function to be called if paused", async () => {
-      await nonRewardPool.pauseContract()
+      await nonRewardPool.pauseContract();
       let mint = await nonRewardPool.calculateAmountsMintedSingleToken(
         0,
         amount
@@ -83,7 +90,7 @@ describe("Contract: NonRewardPool", async () => {
       ).to.be.revertedWith("Pausable: paused");
     });
     it("should allow the depositFromStrategy function to be called if paused", async () => {
-      await nonRewardPool.pauseContract()
+      await nonRewardPool.pauseContract();
       let mint = await nonRewardPool.calculateAmountsMintedSingleToken(
         0,
         amount
@@ -92,6 +99,36 @@ describe("Contract: NonRewardPool", async () => {
       await strategy
         .connect(user1)
         .deposit(mint.amount0Minted, mint.amount1Minted);
+    });
+    it("should allow collectToStrategy to collect fees to the strategy", async () => {
+      let mint = await nonRewardPool.calculateAmountsMintedSingleToken(
+        0,
+        amount
+      );
+      await strategy
+        .connect(user1)
+        .deposit(mint.amount0Minted, mint.amount1Minted);
+       await swapToken0ForToken1(
+         router,
+         token0,
+         token1,
+         admin.address,
+         bnDecimal(10000)
+       ); 
+       await swapToken1ForToken0(
+         router,
+         token0,
+         token1,
+         admin.address,
+         bnDecimal(10000)
+       );
+       const token0BalBefore = await token0.balanceOf(strategy.address)
+       const token1BalBefore = await token1.balanceOf(strategy.address)
+       await strategy.collect()
+       const token0BalAfter = await token0.balanceOf(strategy.address)
+       const token1BalAfter = await token1.balanceOf(strategy.address)
+       expect(token0BalAfter).to.be.gt(token0BalBefore);
+       expect(token1BalAfter).to.be.gt(token1BalBefore);
     });
   });
 });
