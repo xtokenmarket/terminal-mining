@@ -381,8 +381,7 @@ contract NonRewardPool is
     }
 
     function collectToStrategy()
-        public
-        onlyOwnerOrManager
+        external
         returns (uint256 collected0, uint256 collected1)
     {
         (collected0, collected1) = collect();
