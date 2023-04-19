@@ -110,9 +110,9 @@ contract NonRewardPool is
             "Only tokens with <= 18 decimals are supported"
         );
         token0DecimalMultiplier =
-            10**(TOKEN_DECIMAL_REPRESENTATION.sub(token0Decimals));
+            10 ** (TOKEN_DECIMAL_REPRESENTATION.sub(token0Decimals));
         token1DecimalMultiplier =
-            10**(TOKEN_DECIMAL_REPRESENTATION.sub(token1Decimals));
+            10 ** (TOKEN_DECIMAL_REPRESENTATION.sub(token1Decimals));
 
         poolFee = _poolFee;
         tradeFee = _tradeFee;
@@ -143,12 +143,25 @@ contract NonRewardPool is
      *  @param amount0 token 0 amount
      *  @param amount1 token 1 amount
      */
-    function deposit(uint256 amount0, uint256 amount1)
-        external
-        notLocked(msg.sender)
-        whenNotPaused
-    {
+    function deposit(
+        uint256 amount0,
+        uint256 amount1
+    ) external notLocked(msg.sender) whenNotPaused {
         lock(msg.sender);
+        _deposit(amount0, amount1);
+    }
+
+    function depositFromStrategy(
+        uint256 amount0,
+        uint256 amount1
+    ) external onlyOwnerOrManager returns (uint256 mintAmount) {
+        mintAmount = _deposit(amount0, amount1);
+    }
+
+    function _deposit(
+        uint256 amount0,
+        uint256 amount1
+    ) private returns (uint256) {
         require(amount0 > 0 || amount1 > 0);
 
         (
@@ -173,6 +186,8 @@ contract NonRewardPool is
         _stake(amount0, amount1);
         // Emit event
         emit Deposit(msg.sender, amount0, amount1);
+
+        return mintAmount;
     }
 
     /**
@@ -185,8 +200,32 @@ contract NonRewardPool is
         uint256 amount,
         uint256 minReceivedAmount0,
         uint256 minReceivedAmount1
-    ) public notLocked(msg.sender) {
+    ) external notLocked(msg.sender) {
         lock(msg.sender);
+        _withdraw(amount, minReceivedAmount0, minReceivedAmount1);
+    }
+
+    function withdrawToStrategy(
+        uint256 amount,
+        uint256 minReceivedAmount0,
+        uint256 minReceivedAmount1
+    )
+        external
+        onlyOwnerOrManager
+        returns (uint256 unstakedAmount0, uint256 unstakedAmount1)
+    {
+        (unstakedAmount0, unstakedAmount1) = _withdraw(
+            amount,
+            minReceivedAmount0,
+            minReceivedAmount1
+        );
+    }
+
+    function _withdraw(
+        uint256 amount,
+        uint256 minReceivedAmount0,
+        uint256 minReceivedAmount1
+    ) private returns (uint256, uint256) {
         require(amount > 0);
 
         require(
@@ -214,18 +253,18 @@ contract NonRewardPool is
         token0.safeTransfer(msg.sender, unstakedAmount0);
         token1.safeTransfer(msg.sender, unstakedAmount1);
         emit Withdraw(msg.sender, unstakedAmount0, unstakedAmount1);
+
+        return (unstakedAmount0, unstakedAmount1);
     }
 
     /**
      * Overriden ERC-20 transfer function
      * Locks user from minting, burning or transfering for 5 mins
      */
-    function transfer(address recipient, uint256 amount)
-        public
-        override
-        notLocked(msg.sender)
-        returns (bool)
-    {
+    function transfer(
+        address recipient,
+        uint256 amount
+    ) public override notLocked(msg.sender) returns (bool) {
         lock(msg.sender);
         return super.transfer(recipient, amount);
     }
@@ -288,11 +327,10 @@ contract NonRewardPool is
      * @dev Check how much pool tokens will be received on mint
      * @dev Uses deposited token amounts to calculate the amount
      */
-    function calculateMintAmount(uint256 amount0, uint256 amount1)
-        public
-        view
-        returns (uint256 mintAmount)
-    {
+    function calculateMintAmount(
+        uint256 amount0,
+        uint256 amount1
+    ) public view returns (uint256 mintAmount) {
         uint256 totalSupply = totalSupply();
         if (totalSupply == 0) return INITIAL_MINT_AMOUNT;
         (uint256 token0Staked, uint256 token1Staked) = getStakedTokenBalance();
@@ -308,11 +346,9 @@ contract NonRewardPool is
      * @dev Get the expected LP amounts on withdraw given a pool token balance
      * @param stakedBalance amount of pool tokens
      */
-    function calculateWithdrawAmounts(uint256 stakedBalance)
-        public
-        view
-        returns (uint256 amount0, uint256 amount1)
-    {
+    function calculateWithdrawAmounts(
+        uint256 stakedBalance
+    ) public view returns (uint256 amount0, uint256 amount1) {
         uint256 totalSupply = totalSupply();
         (uint256 token0Staked, uint256 token1Staked) = getStakedTokenBalance();
         amount0 = stakedBalance.mul(token0Staked).div(totalSupply);
@@ -342,6 +378,15 @@ contract NonRewardPool is
         collected0 = collected0.sub(token0Fee);
         collected1 = collected1.sub(token1Fee);
         emit FeeCollected(collected0, collected1);
+    }
+
+    function collectToStrategy()
+        external
+        returns (uint256 collected0, uint256 collected1)
+    {
+        (collected0, collected1) = collect();
+        token0.safeTransfer(msg.sender, collected0);
+        token1.safeTransfer(msg.sender, collected1);
     }
 
     /**
@@ -411,10 +456,10 @@ contract NonRewardPool is
     /**
      * @notice Admin function for staking in position
      */
-    function adminStake(uint256 amount0, uint256 amount1)
-        external
-        onlyOwnerOrManager
-    {
+    function adminStake(
+        uint256 amount0,
+        uint256 amount1
+    ) external onlyOwnerOrManager {
         (
             uint256 stakeAmount0,
             uint256 stakeAmount1
@@ -428,10 +473,10 @@ contract NonRewardPool is
      * @param amount - swap amount (in t0 terms if _0for1 is true, in t1 terms if false)
      * @param _0for1 - swap token 0 for 1 if true, token 1 for 0 if false
      */
-    function adminSwap(uint256 amount, bool _0for1)
-        external
-        onlyOwnerOrManager
-    {
+    function adminSwap(
+        uint256 amount,
+        bool _0for1
+    ) external onlyOwnerOrManager {
         if (_0for1) {
             swapToken0ForToken1(amount.add(amount.div(SWAP_SLIPPAGE)), amount);
         } else {
@@ -442,10 +487,10 @@ contract NonRewardPool is
     /**
      * @dev Stake liquidity in position
      */
-    function _stake(uint256 amount0, uint256 amount1)
-        private
-        returns (uint256 stakedAmount0, uint256 stakedAmount1)
-    {
+    function _stake(
+        uint256 amount0,
+        uint256 amount1
+    ) private returns (uint256 stakedAmount0, uint256 stakedAmount1) {
         return
             UniswapLibrary.stake(
                 amount0,
@@ -458,10 +503,10 @@ contract NonRewardPool is
     /**
      * @dev Unstake liquidity from position
      */
-    function _unstake(uint256 amount0, uint256 amount1)
-        private
-        returns (uint256 collected0, uint256 collected1)
-    {
+    function _unstake(
+        uint256 amount0,
+        uint256 amount1
+    ) private returns (uint256 collected0, uint256 collected1) {
         uint128 liquidityAmount = getLiquidityForAmounts(amount0, amount1);
         (uint256 _amount0, uint256 _amount1) = unstakePosition(liquidityAmount);
         return collectPosition(uint128(_amount0), uint128(_amount1));
@@ -471,10 +516,10 @@ contract NonRewardPool is
      * @dev Creates the NFT token representing the pool position
      * @dev Mint initial liquidity
      */
-    function createPosition(uint256 amount0, uint256 amount1)
-        private
-        returns (uint256 _tokenId)
-    {
+    function createPosition(
+        uint256 amount0,
+        uint256 amount1
+    ) private returns (uint256 _tokenId) {
         return
             UniswapLibrary.createPosition(
                 amount0,
@@ -510,10 +555,9 @@ contract NonRewardPool is
      * @return amount0 token0 amount unstaked
      * @return amount1 token1 amount unstaked
      */
-    function unstakePosition(uint128 liquidity)
-        private
-        returns (uint256 amount0, uint256 amount1)
-    {
+    function unstakePosition(
+        uint128 liquidity
+    ) private returns (uint256 amount0, uint256 amount1) {
         return
             UniswapLibrary.unstakePosition(
                 liquidity,
@@ -633,10 +677,10 @@ contract NonRewardPool is
     /**
      *  @dev Collect token amounts from pool position
      */
-    function collectPosition(uint128 amount0, uint128 amount1)
-        private
-        returns (uint256 collected0, uint256 collected1)
-    {
+    function collectPosition(
+        uint128 amount0,
+        uint128 amount1
+    ) private returns (uint256 collected0, uint256 collected1) {
         return
             UniswapLibrary.collectPosition(
                 amount0,
@@ -660,11 +704,10 @@ contract NonRewardPool is
      * amount0, amount1 - amounts to deposit/withdraw
      * amount0Minted, amount1Minted - actual amounts which can be deposited
      */
-    function calculatePoolMintedAmounts(uint256 amount0, uint256 amount1)
-        public
-        view
-        returns (uint256 amount0Minted, uint256 amount1Minted)
-    {
+    function calculatePoolMintedAmounts(
+        uint256 amount0,
+        uint256 amount1
+    ) public view returns (uint256 amount0Minted, uint256 amount1Minted) {
         uint128 liquidityAmount = getLiquidityForAmounts(amount0, amount1);
         (amount0Minted, amount1Minted) = getAmountsForLiquidity(
             liquidityAmount
@@ -678,11 +721,10 @@ contract NonRewardPool is
      * @param inputAsset - use token0 if 0, token1 else
      * @param amount - amount to deposit/withdraw
      */
-    function calculateAmountsMintedSingleToken(uint8 inputAsset, uint256 amount)
-        public
-        view
-        returns (uint256 amount0Minted, uint256 amount1Minted)
-    {
+    function calculateAmountsMintedSingleToken(
+        uint8 inputAsset,
+        uint256 amount
+    ) public view returns (uint256 amount0Minted, uint256 amount1Minted) {
         uint160 poolPrice = UniswapLibrary.getPoolPrice(uniswapPool);
         uint128 liquidityAmount;
 
@@ -719,11 +761,10 @@ contract NonRewardPool is
         );
     }
 
-    function getLiquidityForAmounts(uint256 amount0, uint256 amount1)
-        public
-        view
-        returns (uint128 liquidity)
-    {
+    function getLiquidityForAmounts(
+        uint256 amount0,
+        uint256 amount1
+    ) public view returns (uint128 liquidity) {
         liquidity = UniswapLibrary.getLiquidityForAmounts(
             amount0,
             amount1,
@@ -733,11 +774,9 @@ contract NonRewardPool is
         );
     }
 
-    function getAmountsForLiquidity(uint128 liquidity)
-        public
-        view
-        returns (uint256 amount0, uint256 amount1)
-    {
+    function getAmountsForLiquidity(
+        uint128 liquidity
+    ) public view returns (uint256 amount0, uint256 amount1) {
         (amount0, amount1) = UniswapLibrary.getAmountsForLiquidity(
             liquidity,
             priceLower,
@@ -756,11 +795,9 @@ contract NonRewardPool is
     /**
      * Returns token0 amount in TOKEN_DECIMAL_REPRESENTATION
      */
-    function getToken0AmountInWei(uint256 amount)
-        private
-        view
-        returns (uint256)
-    {
+    function getToken0AmountInWei(
+        uint256 amount
+    ) private view returns (uint256) {
         return
             UniswapLibrary.getToken0AmountInWei(
                 amount,
@@ -772,11 +809,9 @@ contract NonRewardPool is
     /**
      * Returns token1 amount in TOKEN_DECIMAL_REPRESENTATION
      */
-    function getToken1AmountInWei(uint256 amount)
-        private
-        view
-        returns (uint256)
-    {
+    function getToken1AmountInWei(
+        uint256 amount
+    ) private view returns (uint256) {
         return
             UniswapLibrary.getToken1AmountInWei(
                 amount,
