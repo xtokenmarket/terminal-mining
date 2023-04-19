@@ -7,6 +7,7 @@ const {
   swapToken1ForToken0,
   swapToken0ForToken1,
   bnDecimal,
+  increaseTime,
 } = require("../../scripts/helpers");
 
 describe("Contract: NonRewardPool", async () => {
@@ -59,6 +60,7 @@ describe("Contract: NonRewardPool", async () => {
       await strategy
         .connect(user1)
         .deposit(mint.amount0Minted, mint.amount1Minted);
+      await increaseTime(10);
       const token0BalBefore = await token0.balanceOf(user1.address);
       const token1BalBefore = await token1.balanceOf(user1.address);
       const nrpBal = await strategy.getBal(user1.address);

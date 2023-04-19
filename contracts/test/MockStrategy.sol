@@ -3,7 +3,7 @@ pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "hardhat/console.sol";
-import "../Timelock.sol";
+import "../TimeLock.sol";
 
 interface INonRewardPool {
     function depositFromStrategy(
@@ -26,7 +26,7 @@ interface INonRewardPool {
     function calculatePoolMintedAmounts(uint256 amount0, uint256 amount1) external view returns(uint256, uint256);
 }
 
-contract MockStrategy is Timelock {
+contract MockStrategy is TimeLock {
     INonRewardPool nrp;
     IERC20 token0;
     IERC20 token1;
@@ -44,7 +44,7 @@ contract MockStrategy is Timelock {
     function deposit(
         uint256 amount0,
         uint256 amount1
-    ) external notLocked returns (uint256 mintedAmount) {
+    ) external notLocked(msg.sender) returns (uint256 mintedAmount) {
         lock(msg.sender);
         (uint256 amount0ToMint, uint256 amount1ToMint) = nrp.calculatePoolMintedAmounts(amount0, amount1);
         // extra frontrunning check
@@ -63,7 +63,7 @@ contract MockStrategy is Timelock {
         uint256 amount,
         uint256 minReceivedAmount0,
         uint256 minReceivedAmount1
-    ) external notLocked returns (uint256 unstakedAmount0, uint256 unstakedAmount1) {
+    ) external notLocked(msg.sender) returns (uint256 unstakedAmount0, uint256 unstakedAmount1) {
         lock(msg.sender);
         (unstakedAmount0, unstakedAmount1) = nrp.withdrawToStrategy(
             amount,
