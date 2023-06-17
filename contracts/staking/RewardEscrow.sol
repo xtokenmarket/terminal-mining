@@ -43,8 +43,8 @@ contract RewardEscrow is Initializable, OwnableUpgradeable {
     /* for verifying against the actual token balance of this contract. */
     mapping(address => uint256) public totalEscrowedBalance;
 
-    /* CLR pool vesting period */
-    /* Each CLR pool may have unlimited number of tokens */
+    /* Reward pool vesting period */
+    /* Each Reward pool may have unlimited number of tokens */
     mapping(address => uint256) public rewardPoolVestingPeriod;
 
     uint256 constant TIME_INDEX = 0;
