@@ -43,9 +43,9 @@ contract RewardEscrow is Initializable, OwnableUpgradeable {
     /* for verifying against the actual token balance of this contract. */
     mapping(address => uint256) public totalEscrowedBalance;
 
-    /* CLR pool vesting period */
-    /* Each CLR pool may have unlimited number of tokens */
-    mapping(address => uint256) public clrPoolVestingPeriod;
+    /* Reward pool vesting period */
+    /* Each Reward pool may have unlimited number of tokens */
+    mapping(address => uint256) public rewardPoolVestingPeriod;
 
     uint256 constant TIME_INDEX = 0;
     uint256 constant QUANTITY_INDEX = 1;
@@ -83,15 +83,15 @@ contract RewardEscrow is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Set the vesting period for a given CLR pool
-     * @notice Any CLR pool may have unlimited number of reward tokens
+     * @notice Set the vesting period for a given reward pool
+     * @notice Any reward pool may have unlimited number of reward tokens
      * @notice All reward tokens in pool share the same vesting period
      */
-    function setCLRPoolVestingPeriod(address pool, uint256 vestingPeriod)
+    function setRewardPoolVestingPeriod(address pool, uint256 vestingPeriod)
         external
         onlyOwner
     {
-        clrPoolVestingPeriod[pool] = vestingPeriod;
+        rewardPoolVestingPeriod[pool] = vestingPeriod;
         emit VestingPeriodSet(pool, vestingPeriod);
     }
 
@@ -278,7 +278,7 @@ contract RewardEscrow is Initializable, OwnableUpgradeable {
         );
 
         /* Escrow the tokens for the given token vesting period after claim. */
-        uint256 time = block.timestamp + clrPoolVestingPeriod[pool];
+        uint256 time = block.timestamp + rewardPoolVestingPeriod[pool];
 
         totalEscrowedAccountBalance[token][
             account

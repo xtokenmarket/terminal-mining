@@ -5,10 +5,10 @@ const { deploymentFixture } = require('../fixture');
 
 // Uniswap and CLR Pool deployment tests
 describe('Contract: LMTerminal', async () => {
-  let lmTerminal, token0, token1, rewardToken, admin, user1, user2, user3;
+  let lmTerminal, token0, token1, rewardToken, stakingToken, admin, user1, user2, user3;
 
   before(async () => {
-      ({ lmTerminal, token0, token1, rewardToken, CLRDeployer } = await deploymentFixture());
+      ({ lmTerminal, token0, token1, rewardToken, stakingToken, CLRDeployer, SingleAssetPoolDeployer } = await deploymentFixture());
       [admin, user1, user2, user3, ...addrs] = await ethers.getSigners();
   })
 
@@ -100,6 +100,79 @@ describe('Contract: LMTerminal', async () => {
             expect(rewardTokens[1]).to.be.eq(rewardToken2.address);
         }),
 
+        it('should be able to deploy an single asset pool with one reward token', async () => {
+            // Deploy single asset pool
+            let tx = await lmTerminal.deploySingleAssetPool(
+                stakingToken.address,
+                { rewardTokens: [rewardToken.address], vestingPeriod: 0 }, 
+                { value: lmTerminal.deploymentFee() }
+            );
+
+            let receipt = await tx.wait();
+            let poolDeployment = receipt.events.filter(e => e.event == 'DeployedSingleAssetPool');
+
+            let singleAssetPoolAddress = poolDeployment[0].args.poolInstance;
+            singleAssetPool = await ethers.getContractAt('SingleAssetPool', singleAssetPoolAddress);
+
+            let stakingTokenAddress = await singleAssetPool.stakingToken();
+            let rewardTokenAddress = await singleAssetPool.rewardTokens(0);
+            let clrOwner = await singleAssetPool.owner();
+
+            expect(singleAssetPoolAddress).not.to.be.eq(ethers.constants.AddressZero);
+            expect(stakingTokenAddress).to.be.eq(stakingToken.address);
+            expect(rewardTokenAddress).to.be.eq(rewardToken.address);
+            expect(clrOwner).to.be.eq(admin.address);
+        }),
+
+        it('should be able to deploy an single asset pool with vesting period', async () => {
+            const sixWeeksVesting = '3628800' // Vesting period in seconds
+            // Deploy single asset pool
+            let tx = await lmTerminal.deploySingleAssetPool(
+                stakingToken.address,
+                { rewardTokens: [rewardToken.address], vestingPeriod: sixWeeksVesting }, 
+                { value: lmTerminal.deploymentFee() }
+            );
+
+            let receipt = await tx.wait();
+            let poolDeployment = receipt.events.filter(e => e.event == 'DeployedSingleAssetPool');
+
+            let singleAssetPoolAddress = poolDeployment[0].args.poolInstance;
+            singleAssetPool = await ethers.getContractAt('SingleAssetPool', singleAssetPoolAddress);
+
+            let stakingTokenAddress = await singleAssetPool.stakingToken();
+            let rewardTokenAddress = await singleAssetPool.rewardTokens(0);
+            let rewardsAreEscrowed = await singleAssetPool.rewardsAreEscrowed();
+
+            expect(singleAssetPoolAddress).not.to.be.eq(ethers.constants.AddressZero);
+            expect(stakingTokenAddress).to.be.eq(stakingToken.address);
+            expect(rewardTokenAddress).to.be.eq(rewardToken.address);
+            expect(rewardsAreEscrowed).to.be.eq(true);
+        }),
+
+        it('should be able to deploy an single asset pool with two reward tokens', async () => {
+            let rewardToken2 = await deployArgs('ERC20Basic', 'wBTC', 'wBTC');
+            // Deploy single asset pool
+            let tx = await lmTerminal.deploySingleAssetPool(
+                stakingToken.address,
+                { rewardTokens: [rewardToken.address, rewardToken2.address], vestingPeriod: 0 }, 
+                { value: lmTerminal.deploymentFee() }
+            );
+
+            let receipt = await tx.wait();
+            let poolDeployment = receipt.events.filter(e => e.event == 'DeployedSingleAssetPool');
+
+            let singleAssetPoolAddress = poolDeployment[0].args.poolInstance;
+            singleAssetPool = await ethers.getContractAt('SingleAssetPool', singleAssetPoolAddress);
+
+            let stakingTokenAddress = await singleAssetPool.stakingToken();
+            let rewardTokens = await singleAssetPool.getRewardTokens();
+
+            expect(singleAssetPoolAddress).not.to.be.eq(ethers.constants.AddressZero);
+            expect(stakingTokenAddress).to.be.eq(stakingToken.address);
+            expect(rewardTokens[0]).to.be.eq(rewardToken.address);
+            expect(rewardTokens[1]).to.be.eq(rewardToken2.address);
+        }),
+
         it('should be able to deploy an incentivized pool with reversed token order', async () => {
             await lmTerminal.deployIncentivizedPool(
                 'wETH-XTK-CLR',
@@ -129,7 +202,6 @@ describe('Contract: LMTerminal', async () => {
 
         it('should be able to get fees on incentivized pool deployment', async () => {
             let ethInTerminalBefore = await getBalance(lmTerminal);
-            let rewardProgramDuration = '7257600';
 
             await lmTerminal.deployIncentivizedPool(
                 'wETH-XTK-CLR',
@@ -138,6 +210,24 @@ describe('Contract: LMTerminal', async () => {
                 { fee: 3000, token0: token0.address, token1: token1.address,
                   amount0: bnDecimal(100000), amount1: bnDecimal(100000)}, 
                 { value: await lmTerminal.deploymentFee() });
+            await increaseTime(300);
+
+            let ethInTerminalAfter = await getBalance(lmTerminal);
+            let ethGained = ethInTerminalAfter.sub(ethInTerminalBefore);
+            let deploymentFee = await lmTerminal.deploymentFee();
+
+            expect(ethGained).to.be.eq(deploymentFee);
+        }),
+
+        it('should be able to get fees on single asset pool deployment', async () => {
+            let ethInTerminalBefore = await getBalance(lmTerminal);
+
+            // Deploy single asset pool
+            await lmTerminal.deploySingleAssetPool(
+                stakingToken.address,
+                { rewardTokens: [rewardToken.address], vestingPeriod: 0 }, 
+                { value: lmTerminal.deploymentFee() }
+            );
             await increaseTime(300);
 
             let ethInTerminalAfter = await getBalance(lmTerminal);
@@ -157,6 +247,14 @@ describe('Contract: LMTerminal', async () => {
                   amount0: bnDecimal(100000), amount1: bnDecimal(100000)}
                 )).
                     to.be.revertedWith('Need to send ETH for CLR pool deployment');
+        }),
+
+        it(`shouldn't be able to deploy single asset pool without sending eth`, async () => {
+            await expect(lmTerminal.deploySingleAssetPool(
+                    stakingToken.address,
+                    { rewardTokens: [rewardToken.address], vestingPeriod: 0 }
+                )).
+                    to.be.revertedWith('Need to send ETH for SingleAssetPool deployment');
         }),
 
         it(`shouldn't be able to deploy incentivized pool with LP tokens more than 18 decimals`, async () => {
@@ -184,6 +282,14 @@ describe('Contract: LMTerminal', async () => {
             let stakedTokenAddress = await CLRDeployer.sCLRTokenImplementation();
             expect(clrImplAddress).to.be.eq(CLR.address);
             expect(stakedTokenAddress).to.be.eq(StakedCLRToken.address);
+        })
+
+        it(`owner should be able to change implementation of single asset pool`, async () => {
+            const newSingleAssetPoolImpl = await deploy('SingleAssetPool');
+            await SingleAssetPoolDeployer.setSingleAssetPoolImplementation(newSingleAssetPoolImpl.address);
+
+            let implAddress = await SingleAssetPoolDeployer.singleAssetPoolImplementation();
+            expect(implAddress).to.be.eq(newSingleAssetPoolImpl.address);
         })
     })
 });

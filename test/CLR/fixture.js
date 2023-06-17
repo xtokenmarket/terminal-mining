@@ -315,6 +315,7 @@ async function setupDeploymentAndInitializePool (token0, token1, lowTick, highTi
   // Initialize LM Terminal
   await lmTerminal.initialize(xTokenManager.address, 
       rewardEscrow.address, proxyAdmin.address, CLRDeployer.address, ethers.constants.AddressZero,
+      ethers.constants.AddressZero,
        uniFactory.address, { router: router.address, quoter: quoter.address, 
         positionManager: positionManager.address }, bnDecimal(1), 100, 1000);
 
