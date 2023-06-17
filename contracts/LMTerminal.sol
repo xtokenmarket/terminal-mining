@@ -15,12 +15,15 @@ import "./interfaces/IERC20Extended.sol";
 import "./interfaces/ICLR.sol";
 import "./interfaces/IStakedCLRToken.sol";
 import "./interfaces/INonRewardPool.sol";
+import "./interfaces/ISingleAssetPool.sol";
+import "./interfaces/IRewardPool.sol";
 import "./interfaces/IRewardEscrow.sol";
 import "./interfaces/IxTokenManager.sol";
 import "./interfaces/IProxyAdmin.sol";
 
 import "./CLRDeployer.sol";
 import "./NonRewardPoolDeployer.sol";
+import "./SingleAssetPoolDeployer.sol";
 
 /**
  * Liquidity Mining Terminal
@@ -50,9 +53,11 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
     INonfungiblePositionManager public positionManager; // Uniswap V3 Position Manager contract
     ICLR.UniswapContracts public uniContracts; // Uniswap V3 Contracts
 
-    mapping(address => bool) private isCLRPool; // True if address is CLR pool
+    mapping(address => bool) private isRewardPool; // True if address is a reward pool
 
     NonRewardPoolDeployer public nonRewardPoolDeployer; // Deployer contract for non-reward pools
+
+    SingleAssetPoolDeployer public singleAssetPoolDeployer; // Deployer contract for single asset pools
 
     // -- Structs --
 
@@ -99,6 +104,10 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
         int24 lowerTick,
         int24 upperTick
     );
+    event DeployedSingleAssetPool(
+        address indexed poolInstance,
+        address indexed stakingToken
+    );
     event InitiatedRewardsProgram(
         address indexed clrInstance,
         address[] rewardTokens,
@@ -121,6 +130,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
         address _proxyAdmin,
         address _clrDeployer,
         address _nonRewardPoolDeployer,
+        address _singleAssetPoolDeployer,
         address _uniswapFactory,
         ICLR.UniswapContracts memory _uniContracts,
         uint256 _deploymentFee,
@@ -133,6 +143,9 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
         proxyAdmin = _proxyAdmin;
         clrDeployer = CLRDeployer(_clrDeployer);
         nonRewardPoolDeployer = NonRewardPoolDeployer(_nonRewardPoolDeployer);
+        singleAssetPoolDeployer = SingleAssetPoolDeployer(
+            _singleAssetPoolDeployer
+        );
         positionManager = INonfungiblePositionManager(
             _uniContracts.positionManager
         );
@@ -355,7 +368,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
 
         // Setup vesting period if rewards are escrowed
         if (rewardsAreEscrowed) {
-            rewardEscrow.setCLRPoolVestingPeriod(
+            rewardEscrow.setRewardPoolVestingPeriod(
                 address(clrPool),
                 rewardsProgram.vestingPeriod
             );
@@ -369,7 +382,7 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
         IProxyAdmin(proxyAdmin).addProxyAdmin(address(stakedToken), msg.sender);
 
         deployedCLRPools.push(clrPool);
-        isCLRPool[address(clrPool)] = true;
+        isRewardPool[address(clrPool)] = true;
         emit DeployedIncentivizedPool(
             address(clrPool),
             pool.token0,
@@ -382,24 +395,77 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Deploys a single asset staking pool
+     * @notice Token stakers will receive a portion of the totalRewardsAmount
+     *
+     * @param stakingToken staking token address
+     * @param rewardsProgram Rewards program parameters
+     */
+    function deploySingleAssetPool(
+        address stakingToken,
+        RewardsProgram memory rewardsProgram
+    ) external payable returns (address pool) {
+        uint256 feeOwed = customDeploymentFeeEnabled[msg.sender]
+            ? customDeploymentFee[msg.sender]
+            : deploymentFee;
+        require(
+            msg.value == feeOwed,
+            "Need to send ETH for SingleAssetPool deployment"
+        );
+        bool rewardsAreEscrowed = rewardsProgram.vestingPeriod > 0
+            ? true
+            : false;
+        // get staking program details
+        ISingleAssetPool.StakingDetails memory stakingParams = ISingleAssetPool
+            .StakingDetails({
+                rewardTokens: rewardsProgram.rewardTokens,
+                rewardEscrow: address(rewardEscrow),
+                rewardsAreEscrowed: rewardsAreEscrowed
+            });
+        // Deploy pool
+        pool = singleAssetPoolDeployer.deploySingleAssetPool(proxyAdmin);
+        // initialize pool
+        ISingleAssetPool(pool).initialize(
+            stakingToken,
+            address(this),
+            stakingParams
+        );
+        // Setup vesting period if rewards are escrowed
+        if (rewardsAreEscrowed) {
+            rewardEscrow.setRewardPoolVestingPeriod(
+                pool,
+                rewardsProgram.vestingPeriod
+            );
+        }
+        // transfer ownership of pool to deployer
+        ISingleAssetPool(pool).transferOwnership(msg.sender);
+        // Set pool proxy admin to deployer
+        IProxyAdmin(proxyAdmin).addProxyAdmin(pool, msg.sender);
+        // Add to pools mapping
+        isRewardPool[pool] = true;
+        // emit event
+        emit DeployedSingleAssetPool(pool, stakingToken);
+    }
+
+    /**
      * @notice Initiate reward accumulation for a given staking rewards contract
      * @notice Address calling this function needs to approve reward tokens to Terminal
      */
     function initiateRewardsProgram(
-        ICLR clrPool,
+        IRewardPool rewardPool,
         uint256[] memory totalRewardAmounts,
         uint256 rewardsDuration
     ) external {
-        require(isCLRPool[address(clrPool)], "Not CLR pool");
+        require(isRewardPool[address(rewardPool)], "Not a reward pool");
         require(
-            clrPool.periodFinish() == 0,
+            rewardPool.periodFinish() == 0,
             "Reward program has been initiated"
         );
-        if (clrPool.rewardsAreEscrowed()) {
-            rewardEscrow.addRewardsContract(address(clrPool));
+        if (rewardPool.rewardsAreEscrowed()) {
+            rewardEscrow.addRewardsContract(address(rewardPool));
         }
-        clrPool.setRewardsDuration(rewardsDuration);
-        _initiateRewardsProgram(clrPool, totalRewardAmounts);
+        rewardPool.setRewardsDuration(rewardsDuration);
+        _initiateRewardsProgram(rewardPool, totalRewardAmounts);
     }
 
     /**
@@ -408,40 +474,40 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
      * @notice Used only after first rewards program has ended
      */
     function initiateNewRewardsProgram(
-        ICLR clrPool,
+        IRewardPool rewardPool,
         uint256[] memory totalRewardAmounts,
         uint256 rewardsDuration
     ) external {
         require(
-            clrPool.periodFinish() != 0,
+            rewardPool.periodFinish() != 0,
             "First program must be initialized using initiateRewardsProgram"
         );
         require(
-            block.timestamp > clrPool.periodFinish(),
+            block.timestamp > rewardPool.periodFinish(),
             "Previous program must finish before initializing a new one"
         );
-        clrPool.setRewardsDuration(rewardsDuration);
-        _initiateRewardsProgram(clrPool, totalRewardAmounts);
+        rewardPool.setRewardsDuration(rewardsDuration);
+        _initiateRewardsProgram(rewardPool, totalRewardAmounts);
     }
 
     /**
      * Initiate rewards program for all reward tokens in pool
      * @notice reward amounts must be ordered based on the initial reward token order
      * @notice each reward token will be initialized with exactly the reward amount set here
-     * @param clrPool pool to initiate rewards for
+     * @param rewardPool pool to initiate rewards for
      * @param totalRewardAmounts array of reward amounts for each reward token
      */
     function _initiateRewardsProgram(
-        ICLR clrPool,
+        IRewardPool rewardPool,
         uint256[] memory totalRewardAmounts
     ) private {
-        address[] memory rewardTokens = clrPool.getRewardTokens();
+        address[] memory rewardTokens = rewardPool.getRewardTokens();
         require(
             totalRewardAmounts.length == rewardTokens.length,
             "Total reward amounts count should be the same as reward tokens count"
         );
-        address owner = clrPool.owner();
-        address manager = clrPool.manager();
+        address owner = rewardPool.owner();
+        address manager = rewardPool.manager();
         require(
             msg.sender == owner || msg.sender == manager,
             "Only owner or manager can initiate the rewards program"
@@ -460,16 +526,16 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
             // Transfer *totalRewardsAmount* of rewardToken to StakingRewards address
             IERC20(rewardToken).safeTransferFrom(
                 msg.sender,
-                address(clrPool),
+                address(rewardPool),
                 rewardAmount
             );
-            clrPool.initializeReward(rewardAmount, rewardToken);
+            rewardPool.initializeReward(rewardAmount, rewardToken);
         }
         emit InitiatedRewardsProgram(
-            address(clrPool),
+            address(rewardPool),
             rewardTokens,
             totalRewardAmounts,
-            clrPool.rewardsDuration()
+            rewardPool.rewardsDuration()
         );
     }
 
@@ -523,6 +589,13 @@ contract LMTerminal is Initializable, OwnableUpgradeable {
      */
     function setNonRewardPoolDeployer(address newDeployer) public onlyOwner {
         nonRewardPoolDeployer = NonRewardPoolDeployer(newDeployer);
+    }
+
+    /**
+     * @dev Change Single Asset Pool Deployer address
+     */
+    function setSingleAssetPoolDeployer(address newDeployer) public onlyOwner {
+        singleAssetPoolDeployer = SingleAssetPoolDeployer(newDeployer);
     }
 
     /**

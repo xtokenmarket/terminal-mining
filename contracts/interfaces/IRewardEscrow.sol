@@ -24,7 +24,7 @@ interface IRewardEscrow {
         address account
     ) external view returns (uint256[] memory);
 
-    function clrPoolVestingPeriod(address) external view returns (uint256);
+    function rewardPoolVestingPeriod(address) external view returns (uint256);
 
     function getNextVestingEntry(
         address pool,
@@ -87,7 +87,7 @@ interface IRewardEscrow {
 
     function renounceOwnership() external;
 
-    function setCLRPoolVestingPeriod(address pool, uint256 vestingPeriod)
+    function setRewardPoolVestingPeriod(address pool, uint256 vestingPeriod)
         external;
 
     function totalEscrowedAccountBalance(address, address)
