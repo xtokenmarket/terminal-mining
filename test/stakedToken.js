@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
-const { bnDecimal, bnDecimals, increaseTime, getPriceInX96, deploy } = require('../scripts/helpers');
+const { bnDecimal, bnDecimals, increaseTime, getPriceInX96, deploy, deployArgs } = require('../scripts/helpers');
 const { deploymentFixture } = require('./fixture');
 
 // Tests for Staked Token
@@ -82,7 +82,9 @@ describe('Contract: StakedCLRToken', async () => {
     }),
 
     it(`should be able to transfer staked token if it's initialized as transferable`, async() => {
-        let stakedToken2 = await deploy('StakedCLRToken');
+        const stakedToken2Impl = await deploy('StakedCLRToken');
+        const stakedToken2Proxy = await deployArgs('StakedCLRTokenProxy', stakedToken2Impl.address, user3.address, user3.address);
+        const stakedToken2 = await ethers.getContractAt('StakedCLRToken', stakedToken2Proxy.address);
         await stakedToken2.initialize('StakedToken', 'SCLRToken', admin.address, true);
         await stakedToken2.mint(admin.address, bnDecimal(1000));
         await increaseTime(300);

@@ -19,6 +19,7 @@ const deploymentFixture = deployments.createFixture(async () => {
     const [admin, user1, user2, user3] = await ethers.getSigners();
     let token0 = await deployArgs('ERC20Basic', 'wETH', 'wETH');
     let token1 = await deployArgs('ERC20Basic', 'XTK', 'XTK');
+    let stakingToken = await deployArgs('ERC20Basic', 'sUSD', 'sUSD');
     let rewardToken = await deployArgs('ERC20Basic', 'DAI', 'DAI');
     // Tokens must be sorted by address
     if(token0.address.toLowerCase() > token1.address.toLowerCase()) {
@@ -49,11 +50,17 @@ const deploymentFixture = deployments.createFixture(async () => {
     // Deploy NonRewardPool instance
     let nonRewardPool = await deployAndLink('NonRewardPool', 'UniswapLibrary', uniLib.address);
 
+    // Deploy Single asset pool instance
+    let singleAssetPoolImplementation = await deploy('SingleAssetPool');
+
     // Deploy CLR Proxy factory
     const CLRDeployer = await deployArgs('CLRDeployer', CLR.address, StakedCLRToken.address);
 
     // Deploy NonRewardPool Proxy factory
     const NonRewardPoolDeployer = await deployArgs('NonRewardPoolDeployer', nonRewardPool.address);
+
+    // Deploy SingleAssetPool Proxy factory
+    const SingleAssetPoolDeployer = await deployArgs('SingleAssetPoolDeployer', singleAssetPoolImplementation.address);
 
     // Deploy Liquidity Mining Terminal
     const lmTerminalImpl = await deploy('LMTerminal');
@@ -71,6 +78,7 @@ const deploymentFixture = deployments.createFixture(async () => {
     // Initialize LM Terminal
     await lmTerminal.initialize(xTokenManager.address, 
         rewardEscrow.address, proxyAdmin.address, CLRDeployer.address, NonRewardPoolDeployer.address,
+        SingleAssetPoolDeployer.address,
          uniFactory.address, { router: swapRouter.address, quoter: quoter.address, 
           positionManager: positionManager.address }, bnDecimal(1), 100, 1000);
 
@@ -79,6 +87,7 @@ const deploymentFixture = deployments.createFixture(async () => {
     await token1.transfer(user1.address, bnDecimal(1000000));
     await token0.transfer(user2.address, bnDecimal(1000000));
     await token1.transfer(user2.address, bnDecimal(1000000));
+    await stakingToken.transfer(user1.address, bnDecimal(1000000));
 
     // approve terminal
     await token0.approve(lmTerminal.address, bnDecimal(1000000000));
@@ -90,7 +99,8 @@ const deploymentFixture = deployments.createFixture(async () => {
     await token1.connect(user2).approve(lmTerminal.address, bnDecimal(1000000000));
 
     return {
-      token0, token1, rewardToken, lmTerminal, CLRDeployer, NonRewardPoolDeployer, swapRouter, proxyAdmin
+      token0, token1, rewardToken, stakingToken, lmTerminal,
+      CLRDeployer, NonRewardPoolDeployer, SingleAssetPoolDeployer, swapRouter, proxyAdmin
     }
 });
 
